@@ -17,9 +17,9 @@ export default function DashboardPage() {
     setSelectedConversationId(undefined)
   }
 
-  const handleConversationCreated = (conversationId: string) => {
-    setSelectedConversationId(conversationId)
-  }
+  // const handleConversationCreated = (conversationId: string) => {
+  //   setSelectedConversationId(conversationId)
+  // }
 
   const handleLogout = async () => {
     await logout()

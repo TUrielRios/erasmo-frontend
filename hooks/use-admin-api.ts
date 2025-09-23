@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 
-const API_BASE = "http://localhost:8000/api/v1"
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
 export interface Dashboard {
   overview: {
@@ -76,19 +76,19 @@ export const useAdminApi = () => {
   }
 
   const loadDashboard = async (): Promise<Dashboard | null> => {
-    return handleApiCall(() => fetch(`${API_BASE}/admin/dashboard`))
+    return handleApiCall(() => fetch(`${API_BASE}/api/v1/admin/dashboard`))
   }
 
   const loadCompanies = async (): Promise<Company[] | null> => {
-    return handleApiCall(() => fetch(`${API_BASE}/admin/companies`))
+    return handleApiCall(() => fetch(`${API_BASE}/api/v1/admin/companies`))
   }
 
   const loadCompanyDetails = async (companyId: string): Promise<Company | null> => {
-    return handleApiCall(() => fetch(`${API_BASE}/admin/companies/${companyId}`))
+    return handleApiCall(() => fetch(`${API_BASE}/api/v1/admin/companies/${companyId}`))
   }
 
   const loadCompanyDocuments = async (companyId: string, category?: string): Promise<Document[] | null> => {
-    let url = `${API_BASE}/admin/companies/${companyId}/documents`
+    let url = `${API_BASE}/api/v1/admin/companies/${companyId}/documents`
     if (category) {
       url += `?category=${category}`
     }
@@ -115,7 +115,7 @@ export const useAdminApi = () => {
     formData.append("vectorize", "true")
 
     return handleApiCall(() =>
-      fetch(`${API_BASE}/admin/companies/${companyId}/documents`, {
+      fetch(`${API_BASE}/api/v1/admin/companies/${companyId}/documents`, {
         method: "POST",
         body: formData,
       }),
@@ -124,7 +124,7 @@ export const useAdminApi = () => {
 
   const updateDocument = async (companyId: string, documentId: string, data: Partial<Document>): Promise<any> => {
     return handleApiCall(() =>
-      fetch(`${API_BASE}/admin/companies/${companyId}/documents/${documentId}`, {
+      fetch(`${API_BASE}/api/v1/admin/companies/${companyId}/documents/${documentId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -134,7 +134,7 @@ export const useAdminApi = () => {
 
   const deleteDocument = async (companyId: string, documentId: string): Promise<any> => {
     return handleApiCall(() =>
-      fetch(`${API_BASE}/admin/companies/${companyId}/documents/${documentId}`, {
+      fetch(`${API_BASE}/api/v1/admin/companies/${companyId}/documents/${documentId}`, {
         method: "DELETE",
       }),
     )

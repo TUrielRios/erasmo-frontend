@@ -27,6 +27,9 @@ interface ChatSidebarProps {
   setSidebarOpen: (open: boolean) => void
 }
 
+// Get API URL from environment variable
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+
 export function ChatSidebar({
   activeConversationId,
   onConversationSelect,
@@ -123,8 +126,9 @@ export function ChatSidebar({
         }
 
         console.log("[API Call] Fetching conversations for user:", authData.user.username)
+        console.log("[API Call] Using API URL:", API_URL)
 
-        const response = await fetch(`http://localhost:8000/api/v1/chat/conversations?user_id=${authData.user.id}`, {
+        const response = await fetch(`${API_URL}/api/v1/chat/conversations?user_id=${authData.user.id}`, {
           headers: {
             "Content-Type": "application/json",
           },
@@ -182,8 +186,9 @@ export function ChatSidebar({
       }
 
       console.log("[CREATE] Creating new conversation for user:", authData.user.id)
+      console.log("[CREATE] Using API URL:", API_URL)
 
-      const response = await fetch(`http://localhost:8000/api/v1/chat/conversations?user_id=${authData.user.id}`, {
+      const response = await fetch(`${API_URL}/api/v1/chat/conversations?user_id=${authData.user.id}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -238,8 +243,11 @@ export function ChatSidebar({
         return
       }
 
+      console.log("[DELETE] Deleting conversation:", conversationId)
+      console.log("[DELETE] Using API URL:", API_URL)
+
       // Usar session_id en lugar de conversation_id para la eliminación
-      const response = await fetch(`http://localhost:8000/api/v1/chat/conversations/${conversationId}?user_id=${authData.user.id}`, {
+      const response = await fetch(`${API_URL}/api/v1/chat/conversations/${conversationId}?user_id=${authData.user.id}`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",

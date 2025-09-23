@@ -4,12 +4,13 @@ import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
+import { AuthProvider } from "@/hooks/use-auth"
+import { Toaster } from "@/components/ui/toaster"
 import "./globals.css"
 
 export const metadata: Metadata = {
   title: "Erasmo - AI Branding & Marketing",
   description: "Professional AI-powered branding and marketing platform",
-  generator: "v0.app",
 }
 
 export default function RootLayout({
@@ -20,10 +21,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
-        <Suspense fallback={<div>Loading...</div>}>
-          {children}
-          <Analytics />
-        </Suspense>
+        <AuthProvider>
+          <Suspense fallback={<div>Loading...</div>}>
+            {children}
+            <Analytics />
+          </Suspense>
+          <Toaster />
+        </AuthProvider>
       </body>
     </html>
   )

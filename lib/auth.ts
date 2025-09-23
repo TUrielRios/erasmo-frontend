@@ -19,7 +19,7 @@ export interface User {
   }
 }
 
-const BASE_URL = "http://localhost:8000"
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
 export const getAuthToken = (): string | null => {
   // Verificar que estamos en el cliente
@@ -120,5 +120,93 @@ export const getAuthHeaders = (): HeadersInit => {
   
   return {
     "Content-Type": "application/json",
+  }
+}
+
+// AGREGAR: El objeto authService que falta
+export const authService = {
+  isAuthenticated,
+  
+  async getCurrentUser(): Promise<User> {
+    const user = getUser()
+    if (!user) {
+      throw new Error("No user found")
+    }
+    return user
+  },
+
+  async login(credentials: { email: string; password: string }): Promise<{ user: User }> {
+    try {
+      const response = await fetch(`${BASE_URL}/api/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(credentials),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || "Login failed")
+      }
+
+      const data = await response.json()
+      
+      // Guardar usuario en localStorage
+      if (typeof window !== "undefined") {
+        localStorage.setItem("user", JSON.stringify(data.user))
+      }
+
+      return { user: data.user }
+    } catch (error) {
+      console.error("Login error:", error)
+      throw error
+    }
+  },
+
+  async register(userData: any): Promise<{ user: User }> {
+    try {
+      const response = await fetch(`${BASE_URL}/api/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(userData),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || "Registration failed")
+      }
+
+      const data = await response.json()
+      
+      // Guardar usuario en localStorage
+      if (typeof window !== "undefined") {
+        localStorage.setItem("user", JSON.stringify(data.user))
+      }
+
+      return { user: data.user }
+    } catch (error) {
+      console.error("Registration error:", error)
+      throw error
+    }
+  },
+
+  async logout(): Promise<void> {
+    try {
+      // Opcional: llamar al endpoint de logout en el backend
+      // await fetch(`${BASE_URL}/api/logout`, { 
+      //   method: "POST",
+      //   headers: getAuthHeaders()
+      // })
+      
+      // Limpiar localStorage
+      logout()
+    } catch (error) {
+      console.error("Logout error:", error)
+      // Limpiar localStorage aunque falle el backend
+      logout()
+    }
   }
 }

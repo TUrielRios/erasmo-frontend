@@ -21,6 +21,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
+// Get API URL from environment variable
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -40,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const refreshToken = localStorage.getItem("refresh_token")
 
       console.log("[v0] === CHECKAUTH CALLED ===")
+      console.log("[v0] Using API URL:", API_URL)
       console.log("[v0] Checking auth with token:", token ? `Token exists (${token.substring(0, 20)}...)` : "No token")
       console.log(
         "[v0] Refresh token:",
@@ -57,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       console.log("[v0] Making auth check request...")
-      const response = await fetch("http://localhost:8000/api/v1/auth/me", {
+      const response = await fetch(`${API_URL}/api/v1/auth/me`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -104,8 +108,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
       console.log("[v0] Attempting login for:", email)
+      console.log("[v0] Using API URL:", API_URL)
 
-      const response = await fetch("http://localhost:8000/api/v1/auth/login", {
+      const response = await fetch(`${API_URL}/api/v1/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -167,8 +172,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const register = async (email: string, password: string, username: string): Promise<boolean> => {
     try {
       console.log("[v0] Attempting registration for:", email, username)
+      console.log("[v0] Using API URL:", API_URL)
 
-      const response = await fetch("http://localhost:8000/api/v1/auth/register", {
+      const response = await fetch(`${API_URL}/api/v1/auth/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -197,7 +203,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const savedRefreshToken = localStorage.getItem("refresh_token")
           console.log("[v0] Verification - tokens saved:", {
             access: savedAccessToken ? "✓" : "✗",
-            refresh: savedRefreshToken ? "✓" : "✗",
+            refresh: savedRefreshToken ? "✗" : "✗",
           })
 
           setUser(data.user)

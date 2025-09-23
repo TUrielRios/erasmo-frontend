@@ -24,6 +24,9 @@ interface ChatInterfaceProps {
   onToggleSidebar: () => void
 }
 
+// Get API URL from environment variable
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+
 export function ChatInterface({ conversationId, onToggleSidebar }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState("")
@@ -78,10 +81,11 @@ export function ChatInterface({ conversationId, onToggleSidebar }: ChatInterface
       if (isCancelled) return
       
       console.log("[CHAT] Starting to fetch conversation:", conversationId)
+      console.log("[CHAT] Using API URL:", API_URL)
       setIsLoadingMessages(true)
       
       try {
-        const response = await fetch(`http://localhost:8000/api/v1/chat/conversations/${conversationId}?user_id=${user.id}&message_limit=100`, {
+        const response = await fetch(`${API_URL}/api/v1/chat/conversations/${conversationId}?user_id=${user.id}&message_limit=100`, {
           headers: {
             "Content-Type": "application/json",
           },
@@ -179,6 +183,7 @@ export function ChatInterface({ conversationId, onToggleSidebar }: ChatInterface
       console.log("[CHAT] Sending message:", userMessage.content)
       console.log("[CHAT] Using session_id (conversationId):", conversationId)
       console.log("[CHAT] User ID:", user.id)
+      console.log("[CHAT] Using API URL:", API_URL)
       
       const requestBody = {
         message: userMessage.content, // Cambiar de 'query' a 'message'
@@ -189,7 +194,7 @@ export function ChatInterface({ conversationId, onToggleSidebar }: ChatInterface
       console.log("[CHAT] Request body:", JSON.stringify(requestBody, null, 2))
       
       // Usar el endpoint de query con session_id (que es el conversationId)
-      const response = await fetch(`http://localhost:8000/api/v1/query?user_id=${user.id}`, {
+      const response = await fetch(`${API_URL}/api/v1/query?user_id=${user.id}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
