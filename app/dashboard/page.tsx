@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
 import { ChatSidebar } from "@/components/chat/chat-sidebar"
-import { ChatWindow } from "@/components/chat/chat-window"
+
 import { LogOut, Settings, BarChart3, FileText, Shield } from "lucide-react"
 import { useRouter } from "next/navigation"
 
@@ -74,7 +74,6 @@ export default function DashboardPage() {
           onNewConversation={handleNewConversation}
         />
 
-        <ChatWindow conversationId={selectedConversationId} onConversationCreated={handleConversationCreated} />
       </div>
     </div>
   )
