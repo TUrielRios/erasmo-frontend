@@ -14,6 +14,7 @@ import {
   LogOut,
   Upload,
   History,
+  Shield,
 } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 
@@ -21,9 +22,10 @@ interface DashboardLayoutProps {
   children: React.ReactNode
   activeSection: string
   onSectionChange: (section: string) => void
+  userRole?: string
 }
 
-export default function DashboardLayout({ children, activeSection, onSectionChange }: DashboardLayoutProps) {
+export default function DashboardLayout({ children, activeSection, onSectionChange, userRole }: DashboardLayoutProps) {
   const { user, logout } = useAuth()
 
   const sidebarItems = [
@@ -31,9 +33,13 @@ export default function DashboardLayout({ children, activeSection, onSectionChan
     { id: "knowledge", label: "Conocimiento", icon: Upload },
     { id: "history", label: "Historial", icon: History },
     { id: "analytics", label: "Análisis", icon: BarChart3 },
-    { id: "personality", label: "Metodología+", icon: Brain },
+    { id: "personality", label: "Personalidad", icon: Brain },
     { id: "settings", label: "Configuración", icon: Settings },
   ]
+
+  if (userRole === "admin") {
+    sidebarItems.push({ id: "admin", label: "Administración", icon: Shield })
+  }
 
   return (
     <div className="flex h-screen bg-background">
@@ -70,6 +76,11 @@ export default function DashboardLayout({ children, activeSection, onSectionChan
               >
                 <item.icon className="h-4 w-4 mr-3" />
                 {item.label}
+                {item.id === "admin" && (
+                  <Badge variant="outline" className="ml-auto text-xs">
+                    Admin
+                  </Badge>
+                )}
               </Button>
             ))}
           </div>
@@ -82,7 +93,14 @@ export default function DashboardLayout({ children, activeSection, onSectionChan
               <User className="h-4 w-4 text-muted-foreground" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-sidebar-foreground truncate">{user?.username || "Usuario"}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-medium text-sidebar-foreground truncate">{user?.username || "Usuario"}</p>
+                {userRole === "admin" && (
+                  <Badge variant="default" className="text-xs">
+                    Admin
+                  </Badge>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground truncate">{user?.email || ""}</p>
             </div>
           </div>
@@ -106,6 +124,11 @@ export default function DashboardLayout({ children, activeSection, onSectionChan
             <h2 className="text-xl font-semibold text-foreground capitalize">
               {sidebarItems.find((item) => item.id === activeSection)?.label || "Dashboard"}
             </h2>
+            {activeSection === "admin" && (
+              <Badge variant="outline" className="text-xs">
+                Panel de Control
+              </Badge>
+            )}
           </div>
 
           <div className="flex items-center space-x-2">

@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Brain, Mail, Lock, User } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Brain, Mail, Lock, User, Building2, Briefcase } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 
 export default function AuthScreen() {
@@ -15,10 +16,67 @@ export default function AuthScreen() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [username, setUsername] = useState("")
+  const [fullName, setFullName] = useState("")
+  const [companyName, setCompanyName] = useState("")
+  const [industry, setIndustry] = useState("")
+  const [sector, setSector] = useState("")
+  const [jobArea, setJobArea] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
 
   const { login, register } = useAuth()
+
+  const industries = [
+    "Tecnología",
+    "Retail",
+    "Salud",
+    "Finanzas",
+    "Educación",
+    "Manufactura",
+    "Servicios",
+    "Entretenimiento",
+    "Inmobiliario",
+    "Alimentación",
+    "Turismo",
+    "Transporte",
+    "Energía",
+    "Consultoría",
+    "Otro",
+  ]
+
+  const sectors = [
+    "Software",
+    "E-commerce",
+    "Farmacéutico",
+    "Banca",
+    "Seguros",
+    "Educación Superior",
+    "Automotriz",
+    "Textil",
+    "Marketing Digital",
+    "Medios de Comunicación",
+    "Hotelería",
+    "Logística",
+    "Renovables",
+    "Estrategia Empresarial",
+    "Otro",
+  ]
+
+  const jobAreas = [
+    "Marketing",
+    "Ventas",
+    "Estrategia",
+    "Operaciones",
+    "Recursos Humanos",
+    "Finanzas",
+    "Tecnología",
+    "Producto",
+    "Dirección General",
+    "Consultoría",
+    "Desarrollo de Negocio",
+    "Comunicaciones",
+    "Otro",
+  ]
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -37,7 +95,13 @@ export default function AuthScreen() {
         console.log("[v0] AuthScreen: Login result:", success)
       } else {
         console.log("[v0] AuthScreen: Calling register function...")
-        success = await register(email, password, username)
+        success = await register(email, password, username, {
+          full_name: fullName,
+          company_name: companyName,
+          industry,
+          sector,
+          job_area: jobArea,
+        })
         console.log("[v0] AuthScreen: Register result:", success)
       }
 
@@ -66,6 +130,18 @@ export default function AuthScreen() {
     }
   }
 
+  const resetForm = () => {
+    setEmail("")
+    setPassword("")
+    setUsername("")
+    setFullName("")
+    setCompanyName("")
+    setIndustry("")
+    setSector("")
+    setJobArea("")
+    setError("")
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-muted flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -92,6 +168,124 @@ export default function AuthScreen() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               {!isLogin && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="fullName" className="text-card-foreground">
+                      Nombre completo
+                    </Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="fullName"
+                        type="text"
+                        placeholder="Tu nombre completo"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        className="pl-10 bg-input border-border"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="username" className="text-card-foreground">
+                      Nombre de usuario
+                    </Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="username"
+                        type="text"
+                        placeholder="Tu nombre de usuario"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        className="pl-10 bg-input border-border"
+                        required
+                        minLength={3}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="companyName" className="text-card-foreground">
+                      Nombre de la empresa
+                    </Label>
+                    <div className="relative">
+                      <Building2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="companyName"
+                        type="text"
+                        placeholder="Nombre de tu empresa"
+                        value={companyName}
+                        onChange={(e) => setCompanyName(e.target.value)}
+                        className="pl-10 bg-input border-border"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="industry" className="text-card-foreground">
+                        Industria
+                      </Label>
+                      <Select value={industry} onValueChange={setIndustry} required>
+                        <SelectTrigger className="bg-input border-border">
+                          <SelectValue placeholder="Selecciona" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {industries.map((ind) => (
+                            <SelectItem key={ind} value={ind}>
+                              {ind}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="sector" className="text-card-foreground">
+                        Sector
+                      </Label>
+                      <Select value={sector} onValueChange={setSector} required>
+                        <SelectTrigger className="bg-input border-border">
+                          <SelectValue placeholder="Selecciona" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {sectors.map((sec) => (
+                            <SelectItem key={sec} value={sec}>
+                              {sec}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="jobArea" className="text-card-foreground">
+                      Área de trabajo
+                    </Label>
+                    <div className="relative">
+                      <Briefcase className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Select value={jobArea} onValueChange={setJobArea} required>
+                        <SelectTrigger className="pl-10 bg-input border-border">
+                          <SelectValue placeholder="Tu área de trabajo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {jobAreas.map((area) => (
+                            <SelectItem key={area} value={area}>
+                              {area}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {isLogin && (
                 <div className="space-y-2">
                   <Label htmlFor="username" className="text-card-foreground">
                     Nombre de usuario
@@ -173,10 +367,7 @@ export default function AuthScreen() {
                   onClick={() => {
                     console.log("[v0] AuthScreen: Switching to", isLogin ? "register" : "login", "mode")
                     setIsLogin(!isLogin)
-                    setError("")
-                    setEmail("")
-                    setPassword("")
-                    setUsername("")
+                    resetForm()
                   }}
                 >
                   {isLogin ? "Regístrate aquí" : "Inicia sesión"}

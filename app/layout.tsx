@@ -1,26 +1,14 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Work_Sans, Open_Sans } from "next/font/google"
+import { GeistSans } from "geist/font/sans"
+import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
-import { AuthProvider } from "@/contexts/auth-context"
 import "./globals.css"
 
-const workSans = Work_Sans({
-  subsets: ["latin"],
-  variable: "--font-work-sans",
-  weight: ["400", "500", "600", "700"],
-})
-
-const openSans = Open_Sans({
-  subsets: ["latin"],
-  variable: "--font-open-sans",
-  weight: ["400", "500", "600"],
-})
-
 export const metadata: Metadata = {
-  title: "Erasmo - Agente Estratégico de Marca",
-  description: "Tu asistente inteligente para estrategia de marca y marketing",
+  title: "Erasmo - AI Branding & Marketing",
+  description: "Professional AI-powered branding and marketing platform",
   generator: "v0.app",
 }
 
@@ -30,12 +18,12 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="es">
-      <body className={`font-sans ${workSans.variable} ${openSans.variable}`}>
-        <AuthProvider>
-          <Suspense fallback={null}>{children}</Suspense>
-        </AuthProvider>
-        <Analytics />
+    <html lang="en">
+      <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
+        <Suspense fallback={<div>Loading...</div>}>
+          {children}
+          <Analytics />
+        </Suspense>
       </body>
     </html>
   )
