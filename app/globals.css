@@ -4,80 +4,106 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Updated color palette for Erasmo brand */
-  --background: oklch(1 0 0); /* White */
-  --foreground: oklch(0.3 0 0); /* Dark gray #374151 */
-  --card: oklch(0.97 0 0); /* Light gray #f1f5f9 */
-  --card-foreground: oklch(0.3 0 0);
+  /* Paleta de colores mejorada para Clara - colores más coherentes */
+  --background: oklch(0.99 0 0); /* Blanco suave */
+  --foreground: oklch(0.2 0 0); /* Gris oscuro para texto */
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.2 0 0);
+
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.3 0 0);
-  --primary: oklch(0.4 0.2 264); /* #0a2ff1 blue */
+  --popover-foreground: oklch(0.2 0 0);
+
+  /* Azul primario más vibrante para Clara */
+  --primary: oklch(0.5 0.22 264); /* Azul vibrante */
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(80.466% 0.00009 271.152); /* #10b981 emerald */
-  --secondary-foreground: oklch(1 0 0);
-  --muted: oklch(0.97 0 0);
+
+  --secondary: oklch(0.96 0 0);
+  --secondary-foreground: oklch(0.2 0 0);
+
+  --muted: oklch(0.96 0 0);
   --muted-foreground: oklch(0.5 0 0);
-  --accent: oklch(89.143% 0.0001 271.152);
-  --accent-foreground: oklch(1 0 0);
-  --destructive: oklch(0.55 0.2 25);
+
+  --accent: oklch(0.96 0 0);
+  --accent-foreground: oklch(0.2 0 0);
+
+  --destructive: oklch(0.55 0.22 25);
   --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.9 0 0);
-  --input: oklch(1 0 0);
-  --ring: oklch(0.4 0.2 264 / 0.5);
-  --chart-1: oklch(0.4 0.2 264);
-  --chart-2: oklch(0.4 0.2 264);
-  --chart-3: oklch(0.55 0.2 25);
+
+  --border: oklch(0.92 0 0);
+  --input: oklch(0.98 0 0);
+  --ring: oklch(0.5 0.22 264 / 0.3);
+
+  --chart-1: oklch(0.5 0.22 264);
+  --chart-2: oklch(0.6 0.15 200);
+  --chart-3: oklch(0.55 0.22 25);
   --chart-4: oklch(0.7 0.15 85);
-  --chart-5: oklch(0.3 0 0);
+  --chart-5: oklch(0.45 0.18 300);
+
   --radius: 0.5rem;
-  --sidebar: oklch(0.97 0 0);
-  --sidebar-foreground: oklch(0.3 0 0);
-  --sidebar-primary: oklch(0.4 0.2 264);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.4 0.2 264);
-  --sidebar-accent-foreground: oklch(1 0 0);
-  --sidebar-border: oklch(0.9 0 0);
-  --sidebar-ring: oklch(0.4 0.2 264 / 0.5);
+
+  /* Sidebar con colores diferenciados y mejor contraste */
+  --sidebar: oklch(0.97 0 0); /* Fondo ligeramente gris */
+  --sidebar-foreground: oklch(0.2 0 0); /* Texto oscuro */
+  --sidebar-primary: oklch(0.5 0.22 264); /* Azul primario */
+  --sidebar-primary-foreground: oklch(1 0 0); /* Blanco */
+  --sidebar-accent: oklch(0.93 0 0); /* Gris más oscuro para hover */
+  --sidebar-accent-foreground: oklch(0.2 0 0); /* Texto oscuro */
+  --sidebar-border: oklch(0.88 0 0); /* Borde visible */
+  --sidebar-ring: oklch(0.5 0.22 264 / 0.3);
 }
 
 .dark {
-  --background: oklch(0.1 0 0);
-  --foreground: oklch(0.95 0 0);
-  --card: oklch(0.15 0 0);
+  /* Modo oscuro con mejor contraste */
+  --background: oklch(0.15 0 0); /* Fondo oscuro */
+  --foreground: oklch(0.95 0 0); /* Texto claro */
+
+  --card: oklch(0.18 0 0);
   --card-foreground: oklch(0.95 0 0);
-  --popover: oklch(0.15 0 0);
+
+  --popover: oklch(0.18 0 0);
   --popover-foreground: oklch(0.95 0 0);
-  --primary: oklch(0.5 0.2 264);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(34.004% 0.22684 264.185);
-  --secondary-foreground: oklch(0.1 0 0);
-  --muted: oklch(0.2 0 0);
-  --muted-foreground: oklch(0.6 0 0);
-  --accent: oklch(34.004% 0.22684 264.185);
-  --accent-foreground: oklch(0.1 0 0);
-  --destructive: oklch(0.6 0.2 25);
-  --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.2 0 0);
-  --input: oklch(0.15 0 0);
-  --ring: oklch(0.5 0.2 264 / 0.5);
-  --chart-1: oklch(0.5 0.2 264);
-  --chart-2: oklch(34.004% 0.22684 264.185);
-  --chart-3: oklch(0.6 0.2 25);
+
+  --primary: oklch(0.6 0.22 264); /* Azul más claro en dark mode */
+  --primary-foreground: oklch(0.98 0 0);
+
+  --secondary: oklch(0.25 0 0);
+  --secondary-foreground: oklch(0.95 0 0);
+
+  --muted: oklch(0.25 0 0);
+  --muted-foreground: oklch(0.65 0 0);
+
+  --accent: oklch(0.25 0 0);
+  --accent-foreground: oklch(0.95 0 0);
+
+  --destructive: oklch(0.5 0.22 25);
+  --destructive-foreground: oklch(0.98 0 0);
+
+  --border: oklch(0.25 0 0);
+  --input: oklch(0.2 0 0);
+  --ring: oklch(0.6 0.22 264 / 0.4);
+
+  --chart-1: oklch(0.6 0.22 264);
+  --chart-2: oklch(0.65 0.15 180);
+  --chart-3: oklch(0.6 0.22 25);
   --chart-4: oklch(0.75 0.15 85);
-  --chart-5: oklch(0.7 0 0);
-  --sidebar: oklch(0.12 0 0);
-  --sidebar-foreground: oklch(0.95 0 0);
-  --sidebar-primary: oklch(0.5 0.2 264);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(34.004% 0.22684 264.185);
-  --sidebar-accent-foreground: oklch(0.1 0 0);
-  --sidebar-border: oklch(0.2 0 0);
-  --sidebar-ring: oklch(0.5 0.2 264 / 0.5);
+  --chart-5: oklch(0.65 0.18 300);
+
+  /* Sidebar en dark mode con mejor diferenciación */
+  --sidebar: oklch(0.12 0 0); /* Más oscuro que el background */
+  --sidebar-foreground: oklch(0.95 0 0); /* Texto claro */
+  --sidebar-primary: oklch(0.6 0.22 264); /* Azul más claro */
+  --sidebar-primary-foreground: oklch(0.98 0 0);
+  --sidebar-accent: oklch(0.2 0 0); /* Hover más claro */
+  --sidebar-accent-foreground: oklch(0.95 0 0);
+  --sidebar-border: oklch(0.22 0 0); /* Borde sutil */
+  --sidebar-ring: oklch(0.6 0.22 264 / 0.4);
 }
 
 @theme inline {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Cambiando fuente a Red Hat Display */
+  --font-sans: "Red Hat Display", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", "Geist Mono Fallback";
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

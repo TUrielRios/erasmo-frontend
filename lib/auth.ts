@@ -24,7 +24,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 export const getAuthToken = (): string | null => {
   // Verificar que estamos en el cliente
   if (typeof window === "undefined") return null
-  
+
   try {
     // Si hay usuario logueado, crear un "token" ficticio para compatibilidad
     const userStr = localStorage.getItem("user")
@@ -37,18 +37,18 @@ export const getAuthToken = (): string | null => {
   } catch (error) {
     console.error("Error getting auth token:", error)
   }
-  
+
   return null
 }
 
 export const getUser = (): User | null => {
   // Verificar que estamos en el cliente
   if (typeof window === "undefined") return null
-  
+
   try {
     const userStr = localStorage.getItem("user")
     if (!userStr || userStr === "undefined") return null
-    
+
     const user = JSON.parse(userStr)
     // Verificar que el usuario tenga la estructura correcta
     if (user && user.id && user.email && user.is_active) {
@@ -63,13 +63,13 @@ export const getUser = (): User | null => {
       console.error("Error cleaning up invalid user data:", cleanupError)
     }
   }
-  
+
   return null
 }
 
 export const logout = () => {
   console.log("[AUTH] Logging out user...")
-  
+
   try {
     if (typeof window !== "undefined") {
       localStorage.removeItem("user")
@@ -87,7 +87,7 @@ export const logout = () => {
 
 export const isAuthenticated = (): boolean => {
   if (typeof window === "undefined") return false
-  
+
   try {
     const user = getUser()
     return !!(user && user.is_active)
@@ -117,16 +117,44 @@ export const getAuthHeaders = (): HeadersInit => {
       "X-User-ID": user.id.toString(),
     }
   }
-  
+
   return {
     "Content-Type": "application/json",
+  }
+}
+
+export const getCompanyUsers = async (): Promise<User[]> => {
+  const user = getUser()
+  if (!user) {
+    throw new Error("Usuario no autenticado")
+  }
+
+  try {
+    // <CHANGE> Agregar user_id como query parameter
+    const response = await fetch(
+      `${BASE_URL}/api/v1/users/company/${user.company.id}?user_id=${user.id}`,
+      {
+        method: "GET",
+        headers: getAuthHeaders(),
+      }
+    )
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch company users")
+    }
+
+    const users = await response.json()
+    return users.filter((u: User) => u.id !== user.id)
+  } catch (error) {
+    console.error("Error fetching company users:", error)
+    throw error
   }
 }
 
 // AGREGAR: El objeto authService que falta
 export const authService = {
   isAuthenticated,
-  
+
   async getCurrentUser(): Promise<User> {
     const user = getUser()
     if (!user) {
@@ -151,7 +179,7 @@ export const authService = {
       }
 
       const data = await response.json()
-      
+
       // Guardar usuario en localStorage
       if (typeof window !== "undefined") {
         localStorage.setItem("user", JSON.stringify(data.user))
@@ -180,7 +208,7 @@ export const authService = {
       }
 
       const data = await response.json()
-      
+
       // Guardar usuario en localStorage
       if (typeof window !== "undefined") {
         localStorage.setItem("user", JSON.stringify(data.user))
@@ -196,11 +224,11 @@ export const authService = {
   async logout(): Promise<void> {
     try {
       // Opcional: llamar al endpoint de logout en el backend
-      // await fetch(`${BASE_URL}/api/logout`, { 
+      // await fetch(`${BASE_URL}/api/logout`, {
       //   method: "POST",
       //   headers: getAuthHeaders()
       // })
-      
+
       // Limpiar localStorage
       logout()
     } catch (error) {
@@ -208,5 +236,5 @@ export const authService = {
       // Limpiar localStorage aunque falle el backend
       logout()
     }
-  }
+  },
 }

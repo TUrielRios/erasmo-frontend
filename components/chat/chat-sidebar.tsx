@@ -19,6 +19,9 @@ import {
   Folder,
   FolderPlus,
   Share2,
+  ChevronLeft,
+  ChevronRight,
+  Menu,
 } from "lucide-react"
 import { getUser, logout } from "@/lib/auth"
 import { projectService } from "@/lib/projects"
@@ -67,6 +70,7 @@ export function ChatSidebar({
   const [editingConversationId, setEditingConversationId] = useState<number | null>(null)
   const [editingTitle, setEditingTitle] = useState("")
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const [isCollapsed, setIsCollapsed] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -256,7 +260,6 @@ export function ChatSidebar({
         return
       }
 
-      // Buscar el session_id de la conversación
       const conv = conversations.find((c) => c.id === conversationId)
       if (!conv) return
 
@@ -302,11 +305,9 @@ export function ChatSidebar({
         return
       }
 
-      // Buscar el session_id de la conversación
       const conv = conversations.find((c) => c.id === conversationId)
       if (!conv) return
 
-      // El endpoint espera new_title como query parameter
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/v1/chat/conversations/${conv.session_id}/title?user_id=${user.id}&new_title=${encodeURIComponent(editingTitle.trim())}`,
         {
@@ -409,35 +410,46 @@ export function ChatSidebar({
       {/* Header */}
       <div className="p-4 border-sidebar-border">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-2">
-            <Brain className="h-6 w-6 text-primary" />
-            <div>
-              <h2 className="font-semibold text-sidebar-foreground">Erasmo</h2>
-              <p className="text-xs text-muted-foreground">IA de estrategia de marca</p>
+          {!isCollapsed && (
+            <div className="flex items-center space-x-2">
+              <Brain className="h-6 w-6 text-primary" />
+              <div>
+                <h2 className="font-semibold text-sidebar-foreground">Clara</h2>
+                <p className="text-xs text-muted-foreground">IA de estrategia</p>
+              </div>
             </div>
-          </div>
+          )}
+          {isCollapsed && <Brain className="h-6 w-6 text-primary mx-auto" />}
         </div>
 
-        <Button onClick={() => createNewConversation(selectedProjectId || undefined)} className="w-full" size="sm">
-          <Plus className="h-4 w-4 mr-2" />
-          Nuevo chat
-        </Button>
+        {!isCollapsed ? (
+          <Button onClick={() => createNewConversation(selectedProjectId || undefined)} className="w-full" size="sm">
+            <Plus className="h-4 w-4 mr-2" />
+            Nuevo chat
+          </Button>
+        ) : (
+          <Button onClick={() => createNewConversation(selectedProjectId || undefined)} className="w-full" size="sm">
+            <Plus className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       {/* Search */}
-      <div className="p-4 ">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar chats..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9 bg-background"
-          />
+      {!isCollapsed && (
+        <div className="p-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar chats..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 bg-background"
+            />
+          </div>
         </div>
-      </div>
+      )}
 
-      {networkError && (
+      {networkError && !isCollapsed && (
         <div className="mx-4 mt-2 p-2 bg-yellow-500/10 border border-yellow-500/20 rounded-md">
           <p className="text-xs text-yellow-600 dark:text-yellow-400">{networkError}</p>
         </div>
@@ -445,99 +457,110 @@ export function ChatSidebar({
 
       <ScrollArea className="flex-1 overflow-auto">
         <div className="p-2">
-          <div className="mb-4">
-            <div className="flex items-center justify-between px-2 py-2">
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase">Proyectos</h3>
-              <Button variant="ghost" size="sm" onClick={createNewProject} className="h-6 w-6 p-0 cursor-pointer bg-transparent hover:bg-transparent">
-                <FolderPlus className="h-4 w-4 cursor-pointer" />
-              </Button>
-            </div>
-
-            {isLoadingProjects ? (
-              <div className="text-center text-muted-foreground py-4 text-sm">Cargando proyectos...</div>
-            ) : projects.length === 0 ? (
-              <div className="text-center text-muted-foreground py-4 text-sm">No hay proyectos</div>
-            ) : (
-              <div className="space-y-1">
-                <div
-                  className={cn(
-                    "flex items-center space-x-2 p-2 rounded-lg cursor-pointer transition-colors",
-                    selectedProjectId === null
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                      : "hover:bg-sidebar-accent/50",
-                  )}
-                  onClick={() => setSelectedProjectId(null)}
+          {!isCollapsed && (
+            <div className="mb-4">
+              <div className="flex items-center justify-between px-2 py-2">
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase">Proyectos</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={createNewProject}
+                  className="h-6 w-6 p-0 cursor-pointer bg-transparent hover:bg-transparent"
                 >
-                  <Folder className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">Todos los chats</span>
-                </div>
+                  <FolderPlus className="h-4 w-4 cursor-pointer" />
+                </Button>
+              </div>
 
-                {projects.map((project) => (
+              {isLoadingProjects ? (
+                <div className="text-center text-muted-foreground py-4 text-sm">Cargando proyectos...</div>
+              ) : projects.length === 0 ? (
+                <div className="text-center text-muted-foreground py-4 text-sm">No hay proyectos</div>
+              ) : (
+                <div className="space-y-1">
                   <div
-                    key={project.id}
                     className={cn(
-                      "group flex items-center justify-between p-2 rounded-lg transition-colors relative",
-                      selectedProjectId === project.id
+                      "flex items-center space-x-2 p-2 rounded-lg cursor-pointer transition-colors",
+                      selectedProjectId === null
                         ? "bg-sidebar-accent text-sidebar-accent-foreground"
                         : "hover:bg-sidebar-accent/50",
                     )}
+                    onClick={() => setSelectedProjectId(null)}
                   >
-                    <div
-                      className="flex items-center space-x-2 flex-1 min-w-0 cursor-pointer"
-                      onClick={() => setSelectedProjectId(project.id)}
-                    >
-                      <Folder className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                      <span className="text-sm truncate">{project.name}</span>
-                    </div>
-
-                    <div className="relative">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="hover:bg-transparent cursor-pointer transition-opacity h-6 w-6 p-0"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setOpenMenuId(openMenuId === `project-${project.id}` ? null : `project-${project.id}`)
-                        }}
-                      >
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-
-                      {openMenuId === `project-${project.id}` && (
-                        <>
-                          <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)} />
-                          <div className="absolute right-0 top-8 z-20 w-48 rounded-md border bg-popover p-1 shadow-md">
-                            <button
-                              className="flex w-full items-center rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground text-destructive"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                deleteProject(project.id)
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Eliminar
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
+                    <Folder className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">Todos los chats</span>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+
+                  {projects.map((project) => (
+                    <div
+                      key={project.id}
+                      className={cn(
+                        "group flex items-center justify-between p-2 rounded-lg transition-colors relative",
+                        selectedProjectId === project.id
+                          ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                          : "hover:bg-sidebar-accent/50",
+                      )}
+                    >
+                      <div
+                        className="flex items-center space-x-2 flex-1 min-w-0 cursor-pointer"
+                        onClick={() => setSelectedProjectId(project.id)}
+                      >
+                        <Folder className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <span className="text-sm truncate">{project.name}</span>
+                      </div>
+
+                      <div className="relative">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="hover:bg-transparent cursor-pointer transition-opacity h-6 w-6 p-0"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setOpenMenuId(openMenuId === `project-${project.id}` ? null : `project-${project.id}`)
+                          }}
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+
+                        {openMenuId === `project-${project.id}` && (
+                          <>
+                            <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)} />
+                            <div className="absolute right-0 top-8 z-20 w-48 rounded-md border bg-popover p-1 shadow-md">
+                              <button
+                                className="flex w-full items-center rounded-sm px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground text-destructive"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  deleteProject(project.id)
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Eliminar
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <div>
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase px-2 py-2">
-              {selectedProjectId ? "Chats del proyecto" : "Chats"}
-            </h3>
+            {!isCollapsed && (
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase px-2 py-2">
+                {selectedProjectId ? "Chats del proyecto" : "Chats"}
+              </h3>
+            )}
 
             {isLoading ? (
-              <div className="text-center text-muted-foreground py-8">Cargando conversaciones...</div>
+              !isCollapsed && <div className="text-center text-muted-foreground py-8">Cargando conversaciones...</div>
             ) : filteredConversations.length === 0 ? (
-              <div className="text-center text-muted-foreground py-8 text-sm">
-                {searchTerm ? "No se encontraron conversaciones" : "No hay conversaciones aún"}
-              </div>
+              !isCollapsed && (
+                <div className="text-center text-muted-foreground py-8 text-sm">
+                  {searchTerm ? "No se encontraron conversaciones" : "No hay conversaciones aún"}
+                </div>
+              )
             ) : (
               <div className="space-y-1">
                 {filteredConversations.map((conversation) => (
@@ -550,100 +573,120 @@ export function ChatSidebar({
                         : "hover:bg-sidebar-accent/50",
                     )}
                   >
-                    <div
-                      className="flex-1 min-w-0 cursor-pointer"
-                      onClick={() => {
-                        if (editingConversationId === conversation.id) return
-                        const projectName = conversation.projectId
-                          ? projects.find((p) => p.id === conversation.projectId)?.name || null
-                          : null
-                        onConversationSelect(conversation.session_id, conversation.projectId || null, projectName)
-                        setSidebarOpen(false)
-                      }}
-                    >
-                      <div className="flex items-center space-x-2 mb-1">
-                        <MessageSquare className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                        {editingConversationId === conversation.id ? (
-                          <Input
-                            value={editingTitle}
-                            onChange={(e) => setEditingTitle(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                saveConversationTitle(conversation.id)
-                              } else if (e.key === "Escape") {
-                                cancelEditing()
-                              }
-                            }}
-                            onBlur={() => saveConversationTitle(conversation.id)}
-                            className="h-6 text-sm px-2 py-0"
-                            autoFocus
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        ) : (
-                          <h3 className="font-medium text-sm truncate">{conversation.title}</h3>
-                        )}
+                    {isCollapsed ? (
+                      <div
+                        className="flex items-center justify-center w-full cursor-pointer"
+                        onClick={() => {
+                          const projectName = conversation.projectId
+                            ? projects.find((p) => p.id === conversation.projectId)?.name || null
+                            : null
+                          onConversationSelect(conversation.session_id, conversation.projectId || null, projectName)
+                          setSidebarOpen(false)
+                        }}
+                        title={conversation.title}
+                      >
+                        <MessageSquare className="h-4 w-4 text-muted-foreground" />
                       </div>
-                      <p className="text-xs text-muted-foreground truncate">{conversation.lastMessage}</p>
-                      <div className="flex items-center justify-between mt-2">
-                        <Badge variant="primary" className="text-xs">
-                          {conversation.messageCount}
-                        </Badge>
-                      </div>
-                    </div>
-
-                    {editingConversationId !== conversation.id && (
-                      <div className="relative">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="transition-opacity bg-transparent cursor-pointer hover:bg-transparent"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setOpenMenuId(openMenuId === `conv-${conversation.id}` ? null : `conv-${conversation.id}`)
+                    ) : (
+                      <>
+                        <div
+                          className="flex-1 min-w-0 cursor-pointer"
+                          onClick={() => {
+                            if (editingConversationId === conversation.id) return
+                            const projectName = conversation.projectId
+                              ? projects.find((p) => p.id === conversation.projectId)?.name || null
+                              : null
+                            onConversationSelect(conversation.session_id, conversation.projectId || null, projectName)
+                            setSidebarOpen(false)
                           }}
                         >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
+                          <div className="flex items-center space-x-2 mb-1">
+                            <MessageSquare className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            {editingConversationId === conversation.id ? (
+                              <Input
+                                value={editingTitle}
+                                onChange={(e) => setEditingTitle(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    saveConversationTitle(conversation.id)
+                                  } else if (e.key === "Escape") {
+                                    cancelEditing()
+                                  }
+                                }}
+                                onBlur={() => saveConversationTitle(conversation.id)}
+                                className="h-6 text-sm px-2 py-0"
+                                autoFocus
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            ) : (
+                              <h3 className="font-medium text-sm truncate">{conversation.title}</h3>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground truncate">{conversation.lastMessage}</p>
+                          <div className="flex items-center justify-between mt-2">
+                            <Badge variant="primary" className="text-xs">
+                              {conversation.messageCount}
+                            </Badge>
+                          </div>
+                        </div>
 
-                        {openMenuId === `conv-${conversation.id}` && (
-                          <>
-                            <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)} />
-                            <div className="absolute right-0 top-8 z-20 w-48 rounded-md bg-background p-1 shadow-md">
-                              <button
-                                className="flex w-full text-accent-foreground items-center rounded-sm px-2 py-1.5 text-sm hover:bg-ring hover:text-accent-foreground"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  alert("Función de compartir próximamente")
-                                  setOpenMenuId(null)
-                                }}
-                              >
-                                <Share2 className="h-4 w-4 mr-2" />
-                                Compartir
-                              </button>
-                              <button
-                                className="flex w-full text-accent-foreground items-center rounded-sm px-2 py-1.5 text-sm hover:bg-ring hover:text-accent-foreground"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  renameConversation(conversation.id, conversation.title)
-                                }}
-                              >
-                                <Edit className="h-4 w-4 mr-2" />
-                                Cambiar el nombre
-                              </button>
-                              <button
-                                className="flex w-full items-center rounded-sm px-2 py-1.5 text-sm hover:bg-ring text-destructive"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  deleteConversation(conversation.id)
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Eliminar
-                              </button>
-                            </div>
-                          </>
+                        {editingConversationId !== conversation.id && (
+                          <div className="relative">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="transition-opacity bg-transparent cursor-pointer hover:bg-transparent"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setOpenMenuId(
+                                  openMenuId === `conv-${conversation.id}` ? null : `conv-${conversation.id}`,
+                                )
+                              }}
+                            >
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+
+                            {openMenuId === `conv-${conversation.id}` && (
+                              <>
+                                <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)} />
+                                <div className="absolute right-0 top-8 z-20 w-48 rounded-md bg-background p-1 shadow-md">
+                                  <button
+                                    className="flex w-full text-accent-foreground items-center rounded-sm px-2 py-1.5 text-sm hover:bg-ring hover:text-accent-foreground"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      alert("Función de compartir próximamente")
+                                      setOpenMenuId(null)
+                                    }}
+                                  >
+                                    <Share2 className="h-4 w-4 mr-2" />
+                                    Compartir
+                                  </button>
+                                  <button
+                                    className="flex w-full text-accent-foreground items-center rounded-sm px-2 py-1.5 text-sm hover:bg-ring hover:text-accent-foreground"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      renameConversation(conversation.id, conversation.title)
+                                    }}
+                                  >
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Cambiar el nombre
+                                  </button>
+                                  <button
+                                    className="flex w-full items-center rounded-sm px-2 py-1.5 text-sm hover:bg-ring text-destructive"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      deleteConversation(conversation.id)
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Eliminar
+                                  </button>
+                                </div>
+                              </>
+                            )}
+                          </div>
                         )}
-                      </div>
+                      </>
                     )}
                   </div>
                 ))}
@@ -655,14 +698,30 @@ export function ChatSidebar({
 
       {/* User Info */}
       <div className="p-4 border-t border-sidebar-border">
-        <div className="flex items-center justify-between">
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-sidebar-foreground truncate">{user?.full_name || user?.username}</p>
-            <p className="text-xs text-muted-foreground truncate">{user?.company?.name}</p>
+        {!isCollapsed ? (
+          <div className="flex items-center justify-between">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-sidebar-foreground truncate">
+                {user?.full_name || user?.username}
+              </p>
+              <p className="text-xs text-muted-foreground truncate">{user?.company?.name}</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                logout()
+                router.push("/login")
+              }}
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
           </div>
+        ) : (
           <Button
             variant="ghost"
             size="sm"
+            className="w-full"
             onClick={() => {
               logout()
               router.push("/login")
@@ -670,7 +729,7 @@ export function ChatSidebar({
           >
             <LogOut className="h-4 w-4" />
           </Button>
-        </div>
+        )}
       </div>
     </div>
   )
@@ -679,14 +738,29 @@ export function ChatSidebar({
     <>
       {/* Mobile Sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="w-80 p-0">
+        <SheetContent side="left" className="w-64 p-0">
           <SidebarContent />
         </SheetContent>
       </Sheet>
 
       {/* Desktop Sidebar */}
-      <div className="hidden md:flex md:w-80 md:flex-col">
+      <div
+        className={cn(
+          "hidden md:flex md:flex-col relative transition-all duration-300 ease-in-out",
+          isCollapsed ? "md:w-16" : "md:w-64",
+        )}
+      >
         <SidebarContent />
+
+        {/* Toggle Button */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="absolute -right-3 top-4 h-6 w-6 rounded-full border bg-background p-0 shadow-md hover:bg-accent z-50"
+          onClick={() => setIsCollapsed(!isCollapsed)}
+        >
+          {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+        </Button>
       </div>
     </>
   )

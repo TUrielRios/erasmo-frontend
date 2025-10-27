@@ -4,6 +4,7 @@ import type React from "react"
 import { useEffect, useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -26,10 +27,16 @@ import {
   CheckCircle,
   AlertCircle,
   Plus,
+  Edit,
+  X,
+  Check,
+  Share2,
 } from "lucide-react"
 import { getUser } from "@/lib/auth"
 import { projectFileService } from "@/lib/project-files"
+import { chatService } from "@/lib/chat"
 import { cn } from "@/lib/utils"
+import { ShareConversationDialog } from "./share-conversation-dialog"
 
 interface Message {
   id: string
@@ -85,6 +92,10 @@ export function ChatInterface({
   )
   const [requireAnalysis, setRequireAnalysis] = useState(false)
   const [user, setUser] = useState<any>(null)
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null)
+  const [editingContent, setEditingContent] = useState("")
+  const [showShareDialog, setShowShareDialog] = useState(false)
+  const [conversationTitle, setConversationTitle] = useState("Nueva conversación")
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -94,6 +105,12 @@ export function ChatInterface({
     console.log("[CHAT INTERFACE] User loaded:", currentUser)
     setUser(currentUser)
   }, [])
+
+  useEffect(() => {
+    console.log("[v0] conversationId changed:", conversationId)
+    console.log("[v0] conversationId type:", typeof conversationId)
+    console.log("[v0] conversationId isNaN:", isNaN(Number(conversationId)))
+  }, [conversationId])
 
   const categories = [
     {
@@ -220,6 +237,175 @@ export function ChatInterface({
     }
   }
 
+  const handleStartEdit = (messageId: string, currentContent: string) => {
+    setEditingMessageId(messageId)
+    setEditingContent(currentContent)
+  }
+
+  const handleCancelEdit = () => {
+    setEditingMessageId(null)
+    setEditingContent("")
+  }
+
+const handleSaveEdit = async (messageId: string) => {
+  // Validar que el messageId sea un número válido
+  const numericMessageId = Number(messageId);
+  if (isNaN(numericMessageId) || messageId.startsWith('temp-')) {
+    console.error('[EDIT MESSAGE] Invalid message ID for editing:', messageId);
+    alert('No se puede editar un mensaje temporal. Espera a que se complete el envío.');
+    handleCancelEdit();
+    return;
+  }
+
+  if (!editingContent.trim() || editingContent === messages.find((m) => m.id === messageId)?.content) {
+    handleCancelEdit();
+    return;
+  }
+
+  try {
+    // Update the message in the database
+    const updatedMessage = await chatService.updateMessage(numericMessageId, {
+      content: editingContent.trim(),
+    });
+
+    // Find the index of the edited message
+    const editedMessageIndex = messages.findIndex((msg) => msg.id === messageId);
+
+    // Delete all messages after the edited message from the database
+    const messagesToDelete = messages.slice(editedMessageIndex + 1);
+    for (const msg of messagesToDelete) {
+      // También validar los IDs aquí
+      const msgNumericId = Number(msg.id);
+      if (!isNaN(msgNumericId) && !msg.id.startsWith('temp-')) {
+        try {
+          await chatService.deleteMessage(msgNumericId);
+        } catch (error) {
+          console.error('Error deleting message:', error);
+        }
+      }
+    }
+
+    // Update local state: keep messages up to and including the edited one
+    const updatedMessages = messages.slice(0, editedMessageIndex).concat({
+      ...messages[editedMessageIndex],
+      content: updatedMessage.content,
+      timestamp: updatedMessage.timestamp,
+    });
+
+    setMessages(updatedMessages);
+    handleCancelEdit();
+
+    // Now send the edited message to get a new AI response
+    setIsLoading(true);
+
+    const assistantMessageId = (Date.now() + 1).toString();
+    const assistantMessage: Message = {
+      id: assistantMessageId,
+      content: "",
+      role: "assistant",
+      timestamp: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, assistantMessage]);
+
+    const requestBody = {
+      message: updatedMessage.content,
+      session_id: conversationId,
+      user_id: user.id,
+      require_analysis: requireAnalysis,
+      ...(projectId && { project_id: projectId }),
+    }
+
+    const queryParams = new URLSearchParams({
+      user_id: user.id.toString(),
+    })
+
+    const response = await fetch(`${API_URL}/api/v1/query/stream?${queryParams}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
+    const reader = response.body?.getReader()
+    const decoder = new TextDecoder()
+    let accumulatedContent = ""
+
+    if (reader) {
+      while (true) {
+        const { done, value } = await reader.read()
+
+        if (done) break
+
+        const chunk = decoder.decode(value, { stream: true })
+        const lines = chunk.split("\n")
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = line.slice(6).trim()
+
+            if (data === "[DONE]") {
+              continue
+            }
+
+            try {
+              const parsed = JSON.parse(data)
+
+              if (parsed.content) {
+                accumulatedContent += parsed.content
+
+                setMessages((prev) =>
+                  prev.map((msg) => (msg.id === assistantMessageId ? { ...msg, content: accumulatedContent } : msg)),
+                )
+              }
+            } catch (e) {
+              console.debug("[STREAM] Skipping incomplete chunk")
+            }
+          }
+        }
+      }
+    }
+
+    if (!accumulatedContent) {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === assistantMessageId ? { ...msg, content: "Lo siento, no pude generar una respuesta." } : msg
+        ),
+      )
+    }
+  } catch (error) {
+    console.error("Error updating message:", error)
+    alert("Error al actualizar el mensaje. Intenta de nuevo.")
+  } finally {
+    setIsLoading(false)
+  }
+}
+
+const handleDeleteMessage = async (messageId: string) => {
+  if (!confirm("¿Estás seguro de que quieres eliminar este mensaje?")) return;
+
+  // Validar que el messageId sea un número válido
+  const numericMessageId = Number(messageId);
+  if (isNaN(numericMessageId) || messageId.startsWith('temp-')) {
+    console.error('[DELETE MESSAGE] Invalid message ID for deletion:', messageId);
+    alert('No se puede eliminar un mensaje temporal.');
+    return;
+  }
+
+  try {
+    await chatService.deleteMessage(numericMessageId);
+
+    setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
+  } catch (error) {
+    console.error("Error deleting message:", error);
+    alert("Error al eliminar el mensaje. Intenta de nuevo.");
+  }
+}
+
   useEffect(() => {
     scrollToBottom()
   }, [messages])
@@ -304,125 +490,157 @@ export function ChatInterface({
     }
   }, [conversationId, user?.id, lastLoadedConversationId])
 
-  const sendMessage = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!inputValue.trim() || !conversationId || isLoading || !user) return
+const sendMessage = async (e: React.FormEvent) => {
+  e.preventDefault()
+  if (!inputValue.trim() || !conversationId || isLoading || !user) return
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      content: inputValue.trim(),
-      role: "user",
-      timestamp: new Date().toISOString(),
+  const tempUserMessageId = `temp-user-${Date.now()}`
+  const userMessage: Message = {
+    id: tempUserMessageId, // ID temporal
+    content: inputValue.trim(),
+    role: "user",
+    timestamp: new Date().toISOString(),
+  }
+
+  setMessages((prev) => [...prev, userMessage])
+  setInputValue("")
+  setIsLoading(true)
+
+  const tempAssistantMessageId = `temp-assistant-${Date.now() + 1}`
+  const assistantMessage: Message = {
+    id: tempAssistantMessageId, // ID temporal
+    content: "",
+    role: "assistant",
+    timestamp: new Date().toISOString(),
+  }
+  setMessages((prev) => [...prev, assistantMessage])
+
+  try {
+    const requestBody = {
+      message: userMessage.content,
+      session_id: conversationId,
+      user_id: user.id,
+      require_analysis: requireAnalysis,
+      ...(projectId && { project_id: projectId }),
     }
 
-    setMessages((prev) => [...prev, userMessage])
-    setInputValue("")
-    setIsLoading(true)
+    const queryParams = new URLSearchParams({
+      user_id: user.id.toString(),
+    })
 
-    const assistantMessageId = (Date.now() + 1).toString()
-    const assistantMessage: Message = {
-      id: assistantMessageId,
-      content: "",
-      role: "assistant",
-      timestamp: new Date().toISOString(),
+    const response = await fetch(`${API_URL}/api/v1/query/stream?${queryParams}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
     }
-    setMessages((prev) => [...prev, assistantMessage])
 
-    try {
-      const requestBody = {
-        message: userMessage.content,
-        session_id: conversationId,
-        user_id: user.id,
-        require_analysis: requireAnalysis,
-        ...(projectId && { project_id: projectId }),
-      }
+    const reader = response.body?.getReader()
+    const decoder = new TextDecoder()
+    let accumulatedContent = ""
 
-      const queryParams = new URLSearchParams({
-        user_id: user.id.toString(),
-      })
+    if (reader) {
+      while (true) {
+        const { done, value } = await reader.read()
 
-      const response = await fetch(`${API_URL}/api/v1/query/stream?${queryParams}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestBody),
-      })
+        if (done) break
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
+        const chunk = decoder.decode(value, { stream: true })
+        const lines = chunk.split("\n")
 
-      const reader = response.body?.getReader()
-      const decoder = new TextDecoder()
-      let accumulatedContent = ""
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = line.slice(6).trim()
 
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read()
+            if (data === "[DONE]") {
+              continue
+            }
 
-          if (done) break
+            try {
+              const parsed = JSON.parse(data)
 
-          const chunk = decoder.decode(value, { stream: true })
-          const lines = chunk.split("\n")
-
-          for (const line of lines) {
-            if (line.startsWith("data: ")) {
-              const data = line.slice(6).trim()
-
-              if (data === "[DONE]") {
-                continue
-              }
-
-              try {
-                const parsed = JSON.parse(data)
-
-                if (parsed.content) {
-                  accumulatedContent += parsed.content
-
-                  setMessages((prev) =>
-                    prev.map((msg) => (msg.id === assistantMessageId ? { ...msg, content: accumulatedContent } : msg)),
+              // ✅ Actualizar ID del mensaje del usuario cuando llegue del backend
+              if (parsed.type === "user_message_id") {
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === tempUserMessageId 
+                      ? { ...msg, id: parsed.message_id.toString() }
+                      : msg
                   )
-                }
-              } catch (e) {
-                // Ignore JSON parse errors for incomplete chunks
-                console.debug("[STREAM] Skipping incomplete chunk")
+                )
               }
+
+              // ✅ Actualizar ID del mensaje del asistente cuando llegue del backend
+              if (parsed.type === "assistant_message_id") {
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === tempAssistantMessageId
+                      ? { ...msg, id: parsed.message_id.toString() }
+                      : msg
+                  )
+                )
+              }
+
+              // Manejar contenido del mensaje
+              if (parsed.content || parsed.type === "content") {
+                accumulatedContent += parsed.content || ""
+
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === tempAssistantMessageId || msg.id.startsWith("temp-assistant")
+                      ? { ...msg, content: accumulatedContent }
+                      : msg
+                  )
+                )
+              }
+            } catch (e) {
+              console.debug("[STREAM] Skipping incomplete chunk")
             }
           }
         }
       }
-
-      if (!accumulatedContent) {
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === assistantMessageId ? { ...msg, content: "Lo siento, no pude generar una respuesta." } : msg,
-          ),
-        )
-      }
-    } catch (error) {
-      console.error("[CHAT] Error sending message:", error)
-
-      let errorContent = "Error de conexión. Por favor, verifica tu conexión a internet e intenta nuevamente."
-
-      if (error instanceof Error) {
-        if (error.message.includes("401") || error.message.includes("403")) {
-          errorContent = "Error de autenticación. Por favor, inicia sesión nuevamente."
-        } else if (error.message.includes("404")) {
-          errorContent = "Error: Sesión no encontrada. Por favor, crea una nueva conversación."
-        } else if (error.message.includes("500")) {
-          errorContent = "Error interno del servidor. Por favor, intenta nuevamente."
-        }
-      }
-
-      setMessages((prev) =>
-        prev.map((msg) => (msg.id === assistantMessageId ? { ...msg, content: errorContent } : msg)),
-      )
-    } finally {
-      setIsLoading(false)
     }
-  }
 
+    if (!accumulatedContent) {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === tempAssistantMessageId || msg.id.startsWith("temp-assistant")
+            ? { ...msg, content: "Lo siento, no pude generar una respuesta." }
+            : msg
+        )
+      )
+    }
+  } catch (error) {
+    console.error("[CHAT] Error sending message:", error)
+
+    let errorContent = "Error de conexión. Por favor, verifica tu conexión a internet e intenta nuevamente."
+
+    if (error instanceof Error) {
+      if (error.message.includes("401") || error.message.includes("403")) {
+        errorContent = "Error de autenticación. Por favor, inicia sesión nuevamente."
+      } else if (error.message.includes("404")) {
+        errorContent = "Error: Sesión no encontrada. Por favor, crea una nueva conversación."
+      } else if (error.message.includes("500")) {
+        errorContent = "Error interno del servidor. Por favor, intenta nuevamente."
+      }
+    }
+
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === tempAssistantMessageId || msg.id.startsWith("temp-assistant")
+          ? { ...msg, content: errorContent }
+          : msg
+      )
+    )
+  } finally {
+    setIsLoading(false)
+  }
+}
   const createNewConversation = async () => {
     try {
       console.log("[CREATE CONVERSATION] User:", user)
@@ -479,7 +697,7 @@ export function ChatInterface({
           <Brain className="h-16 w-16 text-primary mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-foreground mb-2">¡Hola, {user?.full_name || user?.username}!</h2>
           <p className="text-muted-foreground mb-6">
-            Soy Erasmo, tu asistente de IA especializado en estrategia de marca y marketing. ¿En qué puedo ayudarte hoy?
+            Soy Clara, tu asistente de IA especializado en estrategia de marca y marketing. ¿En qué puedo ayudarte hoy?
           </p>
           <Button onClick={createNewConversation} size="lg" className="w-full max-w-xs">
             <Plus className="h-5 w-5 mr-2" />
@@ -530,6 +748,23 @@ export function ChatInterface({
           </div>
 
           <div className="flex items-center space-x-2">
+            {conversationId && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  console.log("[v0] Share button clicked")
+                  console.log("[v0] conversationId:", conversationId)
+                  console.log("[v0] conversationId Number:", Number(conversationId))
+                  console.log("[v0] isNaN check:", isNaN(Number(conversationId)))
+                  setShowShareDialog(true)
+                }}
+                className="flex items-center space-x-2"
+              >
+                <Share2 className="h-4 w-4" />
+                <span className="hidden sm:inline">Compartir</span>
+              </Button>
+            )}
             {projectId && (
               <Button
                 variant="outline"
@@ -538,7 +773,7 @@ export function ChatInterface({
                 className="flex items-center space-x-2"
               >
                 <Upload className="h-4 w-4" />
-                <span>Añadir archivos</span>
+                <span className="hidden sm:inline">Añadir archivos</span>
               </Button>
             )}
             <Badge variant="primary" className="text-xs">
@@ -732,292 +967,348 @@ export function ChatInterface({
                       message.role === "user" ? "bg-primary text-primary-foreground ml-12" : "bg-transparent mr-12",
                     )}
                   >
-                    <div className="text-sm leading-relaxed">
-                      {message.role === "assistant"
-                        ? (() => {
-                            let responseData = null
-                            try {
-                              if (typeof message.content === "object") {
-                                responseData = message.content
-                              } else if (
-                                typeof message.content === "string" &&
-                                (message.content.includes("conceptual") || message.content.includes("accional"))
-                              ) {
-                                responseData = JSON.parse(message.content)
-                              }
-                            } catch (e) {
-                              responseData = null
+                    {editingMessageId === message.id ? (
+                      <div className="space-y-2">
+                        <Textarea
+                          value={editingContent}
+                          onChange={(e) => setEditingContent(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && e.ctrlKey) {
+                              e.preventDefault()
+                              handleSaveEdit(message.id)
+                            } else if (e.key === "Escape") {
+                              handleCancelEdit()
                             }
+                          }}
+                          className="w-full min-h-[100px] resize-y"
+                          autoFocus
+                        />
+                        <div className="flex items-center space-x-2">
+                          <Button size="sm" onClick={() => handleSaveEdit(message.id)} className="h-7">
+                            <Check className="h-3 w-3 mr-1" />
+                            Guardar
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={handleCancelEdit} className="h-7">
+                            <X className="h-3 w-3 mr-1" />
+                            Cancelar
+                          </Button>
+                        </div>
+                        <p className="text-xs opacity-70">Presiona Ctrl+Enter para guardar</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="text-sm leading-relaxed">
+                          {message.role === "assistant"
+                            ? (() => {
+                                let responseData = null
+                                try {
+                                  if (typeof message.content === "object") {
+                                    responseData = message.content
+                                  } else if (
+                                    typeof message.content === "string" &&
+                                    (message.content.includes("conceptual") || message.content.includes("accional"))
+                                  ) {
+                                    responseData = JSON.parse(message.content)
+                                  }
+                                } catch (e) {
+                                  responseData = null
+                                }
 
-                            if (
-                              responseData &&
-                              responseData.response_type !== "normal" &&
-                              (responseData.conceptual || responseData.accional)
-                            ) {
-                              const hasConceptual = responseData.conceptual && responseData.conceptual.content
-                              const hasAccional = responseData.accional && responseData.accional.content
+                                if (
+                                  responseData &&
+                                  responseData.response_type !== "normal" &&
+                                  (responseData.conceptual || responseData.accional)
+                                ) {
+                                  const hasConceptual = responseData.conceptual && responseData.conceptual.content
+                                  const hasAccional = responseData.accional && responseData.accional.content
 
-                              return (
-                                <div className="space-y-2 min-w-[400px]">
-                                  {hasConceptual && (
-                                    <Card className="mb-3 border border-border hover:shadow-md transition-all duration-200">
-                                      <button
-                                        onClick={() => toggleDropdown(message.id, "conceptual")}
-                                        className="w-full p-4 text-left flex items-center justify-between hover:bg-accent/50 transition-colors rounded-t-lg"
-                                      >
-                                        <div className="flex items-center space-x-3">
-                                          <div className="p-2 rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300">
-                                            <Lightbulb className="h-5 w-5" />
-                                          </div>
-                                          <h3 className="font-semibold text-foreground">Análisis Conceptual</h3>
-                                        </div>
-                                        {openDropdowns[`${message.id}-conceptual`] ? (
-                                          <ChevronUp className="h-5 w-5" />
-                                        ) : (
-                                          <ChevronDown className="h-5 w-5" />
-                                        )}
-                                      </button>
-
-                                      {openDropdowns[`${message.id}-conceptual`] && (
-                                        <div className="px-4 pb-4 border-t border-border bg-muted/20">
-                                          <div className="pt-4 prose prose-sm max-w-none dark:prose-invert">
-                                            {responseData.conceptual.content.split("\n").map((line, index) => {
-                                              if (line.startsWith("### "))
-                                                return (
-                                                  <h3
-                                                    key={index}
-                                                    className="text-sm font-semibold mt-2 mb-1 text-foreground"
-                                                  >
-                                                    {line.substring(4)}
-                                                  </h3>
-                                                )
-                                              if (line.includes("**")) {
-                                                const parts = line.split(/(\*\*.*?\*\*)/g)
-                                                return (
-                                                  <p key={index} className="mb-2 text-foreground">
-                                                    {parts.map((part, partIndex) =>
-                                                      part.startsWith("**") && part.endsWith("**") ? (
-                                                        <strong key={partIndex}>{part.slice(2, -2)}</strong>
-                                                      ) : (
-                                                        part
-                                                      ),
-                                                    )}
-                                                  </p>
-                                                )
-                                              }
-                                              if (/^\d+\.\s/.test(line))
-                                                return (
-                                                  <div key={index} className="ml-4 mb-1 text-foreground">
-                                                    {line}
-                                                  </div>
-                                                )
-                                              if (line.startsWith("- "))
-                                                return (
-                                                  <div key={index} className="ml-4 mb-1 text-foreground">
-                                                    • {line.substring(2)}
-                                                  </div>
-                                                )
-                                              if (line.trim() === "") return <br key={index} />
-                                              return (
-                                                <p key={index} className="mb-2 text-foreground">
-                                                  {line}
-                                                </p>
-                                              )
-                                            })}
-                                          </div>
-                                        </div>
-                                      )}
-                                    </Card>
-                                  )}
-
-                                  {hasAccional && (
-                                    <Card className="mb-3 border border-border hover:shadow-md transition-all duration-200">
-                                      <button
-                                        onClick={() => toggleDropdown(message.id, "accional")}
-                                        className="w-full p-4 text-left flex items-center justify-between hover:bg-accent/50 transition-colors rounded-t-lg"
-                                      >
-                                        <div className="flex items-center space-x-3">
-                                          <div className="p-2 rounded-lg bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-300">
-                                            <Target className="h-5 w-5" />
-                                          </div>
-                                          <div>
-                                            <h3 className="font-semibold text-foreground">Plan de Acción</h3>
-                                            <div className="flex items-center space-x-2 mt-1">
-                                              {responseData.accional.priority && (
-                                                <Badge variant="outline" className="text-xs">
-                                                  {responseData.accional.priority}
-                                                </Badge>
-                                              )}
-                                              {responseData.accional.timeline && (
-                                                <Badge
-                                                  variant="secondary"
-                                                  className="text-xs flex items-center space-x-1"
-                                                >
-                                                  <Clock className="h-3 w-3" />
-                                                  <span>{responseData.accional.timeline}</span>
-                                                </Badge>
-                                              )}
-                                            </div>
-                                          </div>
-                                        </div>
-                                        {openDropdowns[`${message.id}-accional`] ? (
-                                          <ChevronUp className="h-5 w-5" />
-                                        ) : (
-                                          <ChevronDown className="h-5 w-5" />
-                                        )}
-                                      </button>
-
-                                      {openDropdowns[`${message.id}-accional`] && (
-                                        <div className="px-4 pb-4 border-t border-border bg-muted/20">
-                                          <div className="pt-4 prose prose-sm max-w-none dark:prose-invert">
-                                            {responseData.accional.content.split("\n").map((line, index) => {
-                                              if (line.startsWith("### "))
-                                                return (
-                                                  <h3
-                                                    key={index}
-                                                    className="text-sm font-semibold mt-2 mb-1 text-foreground"
-                                                  >
-                                                    {line.substring(4)}
-                                                  </h3>
-                                                )
-                                              if (line.includes("**")) {
-                                                const parts = line.split(/(\*\*.*?\*\*)/g)
-                                                return (
-                                                  <p key={index} className="mb-2 text-foreground">
-                                                    {parts.map((part, partIndex) =>
-                                                      part.startsWith("**") && part.endsWith("**") ? (
-                                                        <strong key={partIndex}>{part.slice(2, -2)}</strong>
-                                                      ) : (
-                                                        part
-                                                      ),
-                                                    )}
-                                                  </p>
-                                                )
-                                              }
-                                              if (/^\d+\.\s/.test(line))
-                                                return (
-                                                  <div key={index} className="ml-4 mb-1 text-foreground">
-                                                    {line}
-                                                  </div>
-                                                )
-                                              if (line.startsWith("   - "))
-                                                return (
-                                                  <div key={index} className="ml-8 mb-1 text-foreground">
-                                                    • {line.substring(5)}
-                                                  </div>
-                                                )
-                                              if (line.startsWith("- "))
-                                                return (
-                                                  <div key={index} className="ml-4 mb-1 text-foreground">
-                                                    • {line.substring(2)}
-                                                  </div>
-                                                )
-                                              if (line.trim() === "") return <br key={index} />
-                                              return (
-                                                <p key={index} className="mb-2 text-foreground">
-                                                  {line}
-                                                </p>
-                                              )
-                                            })}
-                                          </div>
-                                        </div>
-                                      )}
-                                    </Card>
-                                  )}
-                                  <p className="text-xs opacity-70 mt-2">
-                                    {new Date(message.timestamp).toLocaleTimeString()}
-                                  </p>
-                                </div>
-                              )
-                            }
-
-                            const content =
-                              typeof message.content === "object"
-                                ? message.content.conceptual?.content ||
-                                  message.content.accional?.content ||
-                                  JSON.stringify(message.content)
-                                : message.content
-
-                            return (
-                              <div className="prose prose-sm max-w-none dark:prose-invert">
-                                {content.split("\n").map((line, index) => {
-                                  if (line.startsWith("# ")) {
-                                    return (
-                                      <h1 key={index} className="text-lg font-bold mt-4 mb-2">
-                                        {line.substring(2)}
-                                      </h1>
-                                    )
-                                  }
-                                  if (line.startsWith("## ")) {
-                                    return (
-                                      <h2 key={index} className="text-base font-semibold mt-3 mb-2">
-                                        {line.substring(3)}
-                                      </h2>
-                                    )
-                                  }
-                                  if (line.startsWith("### ")) {
-                                    return (
-                                      <h3 key={index} className="text-sm font-semibold mt-2 mb-1">
-                                        {line.substring(4)}
-                                      </h3>
-                                    )
-                                  }
-                                  if (line === "---") {
-                                    return <hr key={index} className="my-4 border-border" />
-                                  }
-                                  if (line.includes("**")) {
-                                    const parts = line.split(/(\*\*.*?\*\*)/g)
-                                    return (
-                                      <p key={index} className="mb-2">
-                                        {parts.map((part, partIndex) =>
-                                          part.startsWith("**") && part.endsWith("**") ? (
-                                            <strong key={partIndex}>{part.slice(2, -2)}</strong>
-                                          ) : (
-                                            part
-                                          ),
-                                        )}
-                                      </p>
-                                    )
-                                  }
-                                  if (/^\d+\.\s/.test(line)) {
-                                    return (
-                                      <div key={index} className="ml-4 mb-1">
-                                        {line}
-                                      </div>
-                                    )
-                                  }
-                                  if (line.startsWith("   - ")) {
-                                    return (
-                                      <div key={index} className="ml-8 mb-1">
-                                        • {line.substring(5)}
-                                      </div>
-                                    )
-                                  }
-                                  if (line.startsWith("- ")) {
-                                    return (
-                                      <div key={index} className="ml-4 mb-1">
-                                        • {line.substring(2)}
-                                      </div>
-                                    )
-                                  }
-                                  if (line.trim() === "") {
-                                    return <br key={index} />
-                                  }
                                   return (
-                                    <p key={index} className="mb-2">
-                                      {line}
-                                    </p>
+                                    <div className="space-y-2 min-w-[400px]">
+                                      {hasConceptual && (
+                                        <Card className="mb-3 border border-border hover:shadow-md transition-all duration-200">
+                                          <button
+                                            onClick={() => toggleDropdown(message.id, "conceptual")}
+                                            className="w-full p-4 text-left flex items-center justify-between hover:bg-accent/50 transition-colors rounded-t-lg"
+                                          >
+                                            <div className="flex items-center space-x-3">
+                                              <div className="p-2 rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300">
+                                                <Lightbulb className="h-5 w-5" />
+                                              </div>
+                                              <h3 className="font-semibold text-foreground">Análisis Conceptual</h3>
+                                            </div>
+                                            {openDropdowns[`${message.id}-conceptual`] ? (
+                                              <ChevronUp className="h-5 w-5" />
+                                            ) : (
+                                              <ChevronDown className="h-5 w-5" />
+                                            )}
+                                          </button>
+
+                                          {openDropdowns[`${message.id}-conceptual`] && (
+                                            <div className="px-4 pb-4 border-t border-border bg-muted/20">
+                                              <div className="pt-4 prose prose-sm max-w-none dark:prose-invert">
+                                                {responseData.conceptual.content.split("\n").map((line, index) => {
+                                                  if (line.startsWith("### "))
+                                                    return (
+                                                      <h3
+                                                        key={index}
+                                                        className="text-sm font-semibold mt-2 mb-1 text-foreground"
+                                                      >
+                                                        {line.substring(4)}
+                                                      </h3>
+                                                    )
+                                                  if (line.includes("**")) {
+                                                    const parts = line.split(/(\*\*.*?\*\*)/g)
+                                                    return (
+                                                      <p key={index} className="mb-2 text-foreground">
+                                                        {parts.map((part, partIndex) =>
+                                                          part.startsWith("**") && part.endsWith("**") ? (
+                                                            <strong key={partIndex}>{part.slice(2, -2)}</strong>
+                                                          ) : (
+                                                            part
+                                                          ),
+                                                        )}
+                                                      </p>
+                                                    )
+                                                  }
+                                                  if (/^\d+\.\s/.test(line))
+                                                    return (
+                                                      <div key={index} className="ml-4 mb-1 text-foreground">
+                                                        {line}
+                                                      </div>
+                                                    )
+                                                  if (line.startsWith("- "))
+                                                    return (
+                                                      <div key={index} className="ml-4 mb-1 text-foreground">
+                                                        • {line.substring(2)}
+                                                      </div>
+                                                    )
+                                                  if (line.trim() === "") return <br key={index} />
+                                                  return (
+                                                    <p key={index} className="mb-2 text-foreground">
+                                                      {line}
+                                                    </p>
+                                                  )
+                                                })}
+                                              </div>
+                                            </div>
+                                          )}
+                                        </Card>
+                                      )}
+
+                                      {hasAccional && (
+                                        <Card className="mb-3 border border-border hover:shadow-md transition-all duration-200">
+                                          <button
+                                            onClick={() => toggleDropdown(message.id, "accional")}
+                                            className="w-full p-4 text-left flex items-center justify-between hover:bg-accent/50 transition-colors rounded-t-lg"
+                                          >
+                                            <div className="flex items-center space-x-3">
+                                              <div className="p-2 rounded-lg bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-300">
+                                                <Target className="h-5 w-5" />
+                                              </div>
+                                              <div>
+                                                <h3 className="font-semibold text-foreground">Plan de Acción</h3>
+                                                <div className="flex items-center space-x-2 mt-1">
+                                                  {responseData.accional.priority && (
+                                                    <Badge variant="outline" className="text-xs">
+                                                      {responseData.accional.priority}
+                                                    </Badge>
+                                                  )}
+                                                  {responseData.accional.timeline && (
+                                                    <Badge
+                                                      variant="secondary"
+                                                      className="text-xs flex items-center space-x-1"
+                                                    >
+                                                      <Clock className="h-3 w-3" />
+                                                      <span>{responseData.accional.timeline}</span>
+                                                    </Badge>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            </div>
+                                            {openDropdowns[`${message.id}-accional`] ? (
+                                              <ChevronUp className="h-5 w-5" />
+                                            ) : (
+                                              <ChevronDown className="h-5 w-5" />
+                                            )}
+                                          </button>
+
+                                          {openDropdowns[`${message.id}-accional`] && (
+                                            <div className="px-4 pb-4 border-t border-border bg-muted/20">
+                                              <div className="pt-4 prose prose-sm max-w-none dark:prose-invert">
+                                                {responseData.accional.content.split("\n").map((line, index) => {
+                                                  if (line.startsWith("### "))
+                                                    return (
+                                                      <h3
+                                                        key={index}
+                                                        className="text-sm font-semibold mt-2 mb-1 text-foreground"
+                                                      >
+                                                        {line.substring(4)}
+                                                      </h3>
+                                                    )
+                                                  if (line.includes("**")) {
+                                                    const parts = line.split(/(\*\*.*?\*\*)/g)
+                                                    return (
+                                                      <p key={index} className="mb-2 text-foreground">
+                                                        {parts.map((part, partIndex) =>
+                                                          part.startsWith("**") && part.endsWith("**") ? (
+                                                            <strong key={partIndex}>{part.slice(2, -2)}</strong>
+                                                          ) : (
+                                                            part
+                                                          ),
+                                                        )}
+                                                      </p>
+                                                    )
+                                                  }
+                                                  if (/^\d+\.\s/.test(line))
+                                                    return (
+                                                      <div key={index} className="ml-4 mb-1 text-foreground">
+                                                        {line}
+                                                      </div>
+                                                    )
+                                                  if (line.startsWith("   - "))
+                                                    return (
+                                                      <div key={index} className="ml-8 mb-1 text-foreground">
+                                                        • {line.substring(5)}
+                                                      </div>
+                                                    )
+                                                  if (line.startsWith("- "))
+                                                    return (
+                                                      <div key={index} className="ml-4 mb-1 text-foreground">
+                                                        • {line.substring(2)}
+                                                      </div>
+                                                    )
+                                                  if (line.trim() === "") return <br key={index} />
+                                                  return (
+                                                    <p key={index} className="mb-2 text-foreground">
+                                                      {line}
+                                                    </p>
+                                                  )
+                                                })}
+                                              </div>
+                                            </div>
+                                          )}
+                                        </Card>
+                                      )}
+                                      <p className="text-xs opacity-70 mt-2">
+                                        {new Date(message.timestamp).toLocaleTimeString()}
+                                      </p>
+                                    </div>
                                   )
-                                })}
-                              </div>
-                            )
-                          })()
-                        : message.content}
-                    </div>
-                    {!(
-                      typeof message.content === "object" &&
-                      (message.content.conceptual || message.content.accional)
-                    ) && <p className="text-xs opacity-70 mt-2">{new Date(message.timestamp).toLocaleTimeString()}</p>}
+                                }
+
+                                const content =
+                                  typeof message.content === "object"
+                                    ? message.content.conceptual?.content ||
+                                      message.content.accional?.content ||
+                                      JSON.stringify(message.content)
+                                    : message.content
+
+                                return (
+                                  <div className="prose prose-sm max-w-none dark:prose-invert">
+                                    {content.split("\n").map((line, index) => {
+                                      if (line.startsWith("# ")) {
+                                        return (
+                                          <h1 key={index} className="text-lg font-bold mt-4 mb-2">
+                                            {line.substring(2)}
+                                          </h1>
+                                        )
+                                      }
+                                      if (line.startsWith("## ")) {
+                                        return (
+                                          <h2 key={index} className="text-base font-semibold mt-3 mb-2">
+                                            {line.substring(3)}
+                                          </h2>
+                                        )
+                                      }
+                                      if (line.startsWith("### ")) {
+                                        return (
+                                          <h3 key={index} className="text-sm font-semibold mt-2 mb-1">
+                                            {line.substring(4)}
+                                          </h3>
+                                        )
+                                      }
+                                      if (line === "---") {
+                                        return <hr key={index} className="my-4 border-border" />
+                                      }
+                                      if (line.includes("**")) {
+                                        const parts = line.split(/(\*\*.*?\*\*)/g)
+                                        return (
+                                          <p key={index} className="mb-2">
+                                            {parts.map((part, partIndex) =>
+                                              part.startsWith("**") && part.endsWith("**") ? (
+                                                <strong key={partIndex}>{part.slice(2, -2)}</strong>
+                                              ) : (
+                                                part
+                                              ),
+                                            )}
+                                          </p>
+                                        )
+                                      }
+                                      if (/^\d+\.\s/.test(line)) {
+                                        return (
+                                          <div key={index} className="ml-4 mb-1">
+                                            {line}
+                                          </div>
+                                        )
+                                      }
+                                      if (line.startsWith("   - ")) {
+                                        return (
+                                          <div key={index} className="ml-8 mb-1">
+                                            • {line.substring(5)}
+                                          </div>
+                                        )
+                                      }
+                                      if (line.startsWith("- ")) {
+                                        return (
+                                          <div key={index} className="ml-4 mb-1">
+                                            • {line.substring(2)}
+                                          </div>
+                                        )
+                                      }
+                                      if (line.trim() === "") {
+                                        return <br key={index} />
+                                      }
+                                      return (
+                                        <p key={index} className="mb-2">
+                                          {line}
+                                        </p>
+                                      )
+                                    })}
+                                  </div>
+                                )
+                              })()
+                            : message.content}
+                        </div>
+                        {!(
+                          typeof message.content === "object" &&
+                          (message.content.conceptual || message.content.accional)
+                        ) && (
+                          <p className="text-xs opacity-70 mt-2">{new Date(message.timestamp).toLocaleTimeString()}</p>
+                        )}
+                    {message.role === "user" && !message.id.startsWith('temp-') && (
+                          <div className="flex items-center space-x-2 mt-2 pt-2 border-t border-primary-foreground/20">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleStartEdit(message.id, message.content)}
+                              className="h-6 px-2 text-xs hover:bg-primary-foreground/10"
+                            >
+                              <Edit className="h-3 w-3 mr-1" />
+                              Editar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleDeleteMessage(message.id)}
+                              className="h-6 px-2 text-xs hover:bg-destructive/10 hover:text-destructive"
+                            >
+                              <Trash2 className="h-3 w-3 mr-1" />
+                              Eliminar
+                            </Button>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
@@ -1069,6 +1360,20 @@ export function ChatInterface({
             </div>
           </div>
         </div>
+      )}
+
+      {conversationId && (
+        <>
+          {console.log("[v0] Rendering ShareConversationDialog")}
+          {console.log("[v0] showShareDialog:", showShareDialog)}
+          {console.log("[v0] conversationId for dialog:", Number(conversationId))}
+          <ShareConversationDialog
+            open={showShareDialog}
+            onOpenChange={setShowShareDialog}
+            conversationId={conversationId}
+            conversationTitle={conversationTitle}
+          />
+        </>
       )}
     </div>
   )

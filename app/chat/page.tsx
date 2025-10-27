@@ -10,7 +10,7 @@ export default function ChatPage() {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
   const [activeProjectId, setActiveProjectId] = useState<number | null>(null)
   const [activeProjectName, setActiveProjectName] = useState<string | null>(null)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
   const router = useRouter()
 
   useEffect(() => {

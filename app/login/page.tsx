@@ -91,13 +91,13 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="flex items-center justify-center mb-8">
           <Brain className="h-12 w-12 text-primary mr-3" />
-          <h1 className="text-3xl font-bold text-foreground">Erasmo</h1>
+          <h1 className="text-3xl font-bold text-foreground">Clara</h1>
         </div>
 
         <Card>
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Iniciar Sesión</CardTitle>
-            <CardDescription>Accede a tu cuenta para comenzar a usar Erasmo</CardDescription>
+            <CardDescription>Accede a tu cuenta para comenzar a usar Clara</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
