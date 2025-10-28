@@ -78,7 +78,6 @@
 /* Updated font configuration to use Red Hat Display properly */
 @theme inline {
   --font-sans: var(--font-red-hat), "Red Hat Display", system-ui, -apple-system, sans-serif;
-  --font-mono: var(--font-mono), "Geist Mono", monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
