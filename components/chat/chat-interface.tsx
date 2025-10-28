@@ -247,164 +247,164 @@ export function ChatInterface({
     setEditingContent("")
   }
 
-const handleSaveEdit = async (messageId: string) => {
-  // Validar que el messageId sea un número válido
-  const numericMessageId = Number(messageId);
-  if (isNaN(numericMessageId) || messageId.startsWith('temp-')) {
-    console.error('[EDIT MESSAGE] Invalid message ID for editing:', messageId);
-    alert('No se puede editar un mensaje temporal. Espera a que se complete el envío.');
-    handleCancelEdit();
-    return;
-  }
+  const handleSaveEdit = async (messageId: string) => {
+    // Validar que el messageId sea un número válido
+    const numericMessageId = Number(messageId)
+    if (isNaN(numericMessageId) || messageId.startsWith("temp-")) {
+      console.error("[EDIT MESSAGE] Invalid message ID for editing:", messageId)
+      alert("No se puede editar un mensaje temporal. Espera a que se complete el envío.")
+      handleCancelEdit()
+      return
+    }
 
-  if (!editingContent.trim() || editingContent === messages.find((m) => m.id === messageId)?.content) {
-    handleCancelEdit();
-    return;
-  }
+    if (!editingContent.trim() || editingContent === messages.find((m) => m.id === messageId)?.content) {
+      handleCancelEdit()
+      return
+    }
 
-  try {
-    // Update the message in the database
-    const updatedMessage = await chatService.updateMessage(numericMessageId, {
-      content: editingContent.trim(),
-    });
+    try {
+      // Update the message in the database
+      const updatedMessage = await chatService.updateMessage(numericMessageId, {
+        content: editingContent.trim(),
+      })
 
-    // Find the index of the edited message
-    const editedMessageIndex = messages.findIndex((msg) => msg.id === messageId);
+      // Find the index of the edited message
+      const editedMessageIndex = messages.findIndex((msg) => msg.id === messageId)
 
-    // Delete all messages after the edited message from the database
-    const messagesToDelete = messages.slice(editedMessageIndex + 1);
-    for (const msg of messagesToDelete) {
-      // También validar los IDs aquí
-      const msgNumericId = Number(msg.id);
-      if (!isNaN(msgNumericId) && !msg.id.startsWith('temp-')) {
-        try {
-          await chatService.deleteMessage(msgNumericId);
-        } catch (error) {
-          console.error('Error deleting message:', error);
+      // Delete all messages after the edited message from the database
+      const messagesToDelete = messages.slice(editedMessageIndex + 1)
+      for (const msg of messagesToDelete) {
+        // También validar los IDs aquí
+        const msgNumericId = Number(msg.id)
+        if (!isNaN(msgNumericId) && !msg.id.startsWith("temp-")) {
+          try {
+            await chatService.deleteMessage(msgNumericId)
+          } catch (error) {
+            console.error("Error deleting message:", error)
+          }
         }
       }
-    }
 
-    // Update local state: keep messages up to and including the edited one
-    const updatedMessages = messages.slice(0, editedMessageIndex).concat({
-      ...messages[editedMessageIndex],
-      content: updatedMessage.content,
-      timestamp: updatedMessage.timestamp,
-    });
+      // Update local state: keep messages up to and including the edited one
+      const updatedMessages = messages.slice(0, editedMessageIndex).concat({
+        ...messages[editedMessageIndex],
+        content: updatedMessage.content,
+        timestamp: updatedMessage.timestamp,
+      })
 
-    setMessages(updatedMessages);
-    handleCancelEdit();
+      setMessages(updatedMessages)
+      handleCancelEdit()
 
-    // Now send the edited message to get a new AI response
-    setIsLoading(true);
+      // Now send the edited message to get a new AI response
+      setIsLoading(true)
 
-    const assistantMessageId = (Date.now() + 1).toString();
-    const assistantMessage: Message = {
-      id: assistantMessageId,
-      content: "",
-      role: "assistant",
-      timestamp: new Date().toISOString(),
-    };
-    setMessages((prev) => [...prev, assistantMessage]);
+      const assistantMessageId = (Date.now() + 1).toString()
+      const assistantMessage: Message = {
+        id: assistantMessageId,
+        content: "",
+        role: "assistant",
+        timestamp: new Date().toISOString(),
+      }
+      setMessages((prev) => [...prev, assistantMessage])
 
-    const requestBody = {
-      message: updatedMessage.content,
-      session_id: conversationId,
-      user_id: user.id,
-      require_analysis: requireAnalysis,
-      ...(projectId && { project_id: projectId }),
-    }
+      const requestBody = {
+        message: updatedMessage.content,
+        session_id: conversationId,
+        user_id: user.id,
+        require_analysis: requireAnalysis,
+        ...(projectId && { project_id: projectId }),
+      }
 
-    const queryParams = new URLSearchParams({
-      user_id: user.id.toString(),
-    })
+      const queryParams = new URLSearchParams({
+        user_id: user.id.toString(),
+      })
 
-    const response = await fetch(`${API_URL}/api/v1/query/stream?${queryParams}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(requestBody),
-    })
+      const response = await fetch(`${API_URL}/api/v1/query/stream?${queryParams}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.JSON.stringify(requestBody),
+      })
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
 
-    const reader = response.body?.getReader()
-    const decoder = new TextDecoder()
-    let accumulatedContent = ""
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+      let accumulatedContent = ""
 
-    if (reader) {
-      while (true) {
-        const { done, value } = await reader.read()
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read()
 
-        if (done) break
+          if (done) break
 
-        const chunk = decoder.decode(value, { stream: true })
-        const lines = chunk.split("\n")
+          const chunk = decoder.decode(value, { stream: true })
+          const lines = chunk.split("\n")
 
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const data = line.slice(6).trim()
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              const data = line.slice(6).trim()
 
-            if (data === "[DONE]") {
-              continue
-            }
-
-            try {
-              const parsed = JSON.parse(data)
-
-              if (parsed.content) {
-                accumulatedContent += parsed.content
-
-                setMessages((prev) =>
-                  prev.map((msg) => (msg.id === assistantMessageId ? { ...msg, content: accumulatedContent } : msg)),
-                )
+              if (data === "[DONE]") {
+                continue
               }
-            } catch (e) {
-              console.debug("[STREAM] Skipping incomplete chunk")
+
+              try {
+                const parsed = JSON.parse(data)
+
+                if (parsed.content) {
+                  accumulatedContent += parsed.content
+
+                  setMessages((prev) =>
+                    prev.map((msg) => (msg.id === assistantMessageId ? { ...msg, content: accumulatedContent } : msg)),
+                  )
+                }
+              } catch (e) {
+                console.debug("[STREAM] Skipping incomplete chunk")
+              }
             }
           }
         }
       }
+
+      if (!accumulatedContent) {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMessageId ? { ...msg, content: "Lo siento, no pude generar una respuesta." } : msg,
+          ),
+        )
+      }
+    } catch (error) {
+      console.error("Error updating message:", error)
+      alert("Error al actualizar el mensaje. Intenta de nuevo.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!confirm("¿Estás seguro de que quieres eliminar este mensaje?")) return
+
+    // Validar que el messageId sea un número válido
+    const numericMessageId = Number(messageId)
+    if (isNaN(numericMessageId) || messageId.startsWith("temp-")) {
+      console.error("[DELETE MESSAGE] Invalid message ID for deletion:", messageId)
+      alert("No se puede eliminar un mensaje temporal.")
+      return
     }
 
-    if (!accumulatedContent) {
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === assistantMessageId ? { ...msg, content: "Lo siento, no pude generar una respuesta." } : msg
-        ),
-      )
+    try {
+      await chatService.deleteMessage(numericMessageId)
+
+      setMessages((prev) => prev.filter((msg) => msg.id !== messageId))
+    } catch (error) {
+      console.error("Error deleting message:", error)
+      alert("Error al eliminar el mensaje. Intenta de nuevo.")
     }
-  } catch (error) {
-    console.error("Error updating message:", error)
-    alert("Error al actualizar el mensaje. Intenta de nuevo.")
-  } finally {
-    setIsLoading(false)
   }
-}
-
-const handleDeleteMessage = async (messageId: string) => {
-  if (!confirm("¿Estás seguro de que quieres eliminar este mensaje?")) return;
-
-  // Validar que el messageId sea un número válido
-  const numericMessageId = Number(messageId);
-  if (isNaN(numericMessageId) || messageId.startsWith('temp-')) {
-    console.error('[DELETE MESSAGE] Invalid message ID for deletion:', messageId);
-    alert('No se puede eliminar un mensaje temporal.');
-    return;
-  }
-
-  try {
-    await chatService.deleteMessage(numericMessageId);
-
-    setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
-  } catch (error) {
-    console.error("Error deleting message:", error);
-    alert("Error al eliminar el mensaje. Intenta de nuevo.");
-  }
-}
 
   useEffect(() => {
     scrollToBottom()
@@ -490,157 +490,153 @@ const handleDeleteMessage = async (messageId: string) => {
     }
   }, [conversationId, user?.id, lastLoadedConversationId])
 
-const sendMessage = async (e: React.FormEvent) => {
-  e.preventDefault()
-  if (!inputValue.trim() || !conversationId || isLoading || !user) return
+  const sendMessage = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!inputValue.trim() || !conversationId || isLoading || !user) return
 
-  const tempUserMessageId = `temp-user-${Date.now()}`
-  const userMessage: Message = {
-    id: tempUserMessageId, // ID temporal
-    content: inputValue.trim(),
-    role: "user",
-    timestamp: new Date().toISOString(),
-  }
-
-  setMessages((prev) => [...prev, userMessage])
-  setInputValue("")
-  setIsLoading(true)
-
-  const tempAssistantMessageId = `temp-assistant-${Date.now() + 1}`
-  const assistantMessage: Message = {
-    id: tempAssistantMessageId, // ID temporal
-    content: "",
-    role: "assistant",
-    timestamp: new Date().toISOString(),
-  }
-  setMessages((prev) => [...prev, assistantMessage])
-
-  try {
-    const requestBody = {
-      message: userMessage.content,
-      session_id: conversationId,
-      user_id: user.id,
-      require_analysis: requireAnalysis,
-      ...(projectId && { project_id: projectId }),
+    const tempUserMessageId = `temp-user-${Date.now()}`
+    const userMessage: Message = {
+      id: tempUserMessageId, // ID temporal
+      content: inputValue.trim(),
+      role: "user",
+      timestamp: new Date().toISOString(),
     }
 
-    const queryParams = new URLSearchParams({
-      user_id: user.id.toString(),
-    })
+    setMessages((prev) => [...prev, userMessage])
+    setInputValue("")
+    setIsLoading(true)
 
-    const response = await fetch(`${API_URL}/api/v1/query/stream?${queryParams}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(requestBody),
-    })
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
+    const tempAssistantMessageId = `temp-assistant-${Date.now() + 1}`
+    const assistantMessage: Message = {
+      id: tempAssistantMessageId, // ID temporal
+      content: "",
+      role: "assistant",
+      timestamp: new Date().toISOString(),
     }
+    setMessages((prev) => [...prev, assistantMessage])
 
-    const reader = response.body?.getReader()
-    const decoder = new TextDecoder()
-    let accumulatedContent = ""
+    try {
+      const requestBody = {
+        message: userMessage.content,
+        session_id: conversationId,
+        user_id: user.id,
+        require_analysis: requireAnalysis,
+        ...(projectId && { project_id: projectId }),
+      }
 
-    if (reader) {
-      while (true) {
-        const { done, value } = await reader.read()
+      const queryParams = new URLSearchParams({
+        user_id: user.id.toString(),
+      })
 
-        if (done) break
+      const response = await fetch(`${API_URL}/api/v1/query/stream?${queryParams}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      })
 
-        const chunk = decoder.decode(value, { stream: true })
-        const lines = chunk.split("\n")
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
 
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const data = line.slice(6).trim()
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+      let accumulatedContent = ""
 
-            if (data === "[DONE]") {
-              continue
-            }
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read()
 
-            try {
-              const parsed = JSON.parse(data)
+          if (done) break
 
-              // ✅ Actualizar ID del mensaje del usuario cuando llegue del backend
-              if (parsed.type === "user_message_id") {
-                setMessages((prev) =>
-                  prev.map((msg) =>
-                    msg.id === tempUserMessageId 
-                      ? { ...msg, id: parsed.message_id.toString() }
-                      : msg
-                  )
-                )
+          const chunk = decoder.decode(value, { stream: true })
+          const lines = chunk.split("\n")
+
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              const data = line.slice(6).trim()
+
+              if (data === "[DONE]") {
+                continue
               }
 
-              // ✅ Actualizar ID del mensaje del asistente cuando llegue del backend
-              if (parsed.type === "assistant_message_id") {
-                setMessages((prev) =>
-                  prev.map((msg) =>
-                    msg.id === tempAssistantMessageId
-                      ? { ...msg, id: parsed.message_id.toString() }
-                      : msg
-                  )
-                )
-              }
+              try {
+                const parsed = JSON.parse(data)
 
-              // Manejar contenido del mensaje
-              if (parsed.content || parsed.type === "content") {
-                accumulatedContent += parsed.content || ""
-
-                setMessages((prev) =>
-                  prev.map((msg) =>
-                    msg.id === tempAssistantMessageId || msg.id.startsWith("temp-assistant")
-                      ? { ...msg, content: accumulatedContent }
-                      : msg
+                // ✅ Actualizar ID del mensaje del usuario cuando llegue del backend
+                if (parsed.type === "user_message_id") {
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === tempUserMessageId ? { ...msg, id: parsed.message_id.toString() } : msg,
+                    ),
                   )
-                )
+                }
+
+                // ✅ Actualizar ID del mensaje del asistente cuando llegue del backend
+                if (parsed.type === "assistant_message_id") {
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === tempAssistantMessageId ? { ...msg, id: parsed.message_id.toString() } : msg,
+                    ),
+                  )
+                }
+
+                // Manejar contenido del mensaje
+                if (parsed.content || parsed.type === "content") {
+                  accumulatedContent += parsed.content || ""
+
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === tempAssistantMessageId || msg.id.startsWith("temp-assistant")
+                        ? { ...msg, content: accumulatedContent }
+                        : msg,
+                    ),
+                  )
+                }
+              } catch (e) {
+                console.debug("[STREAM] Skipping incomplete chunk")
               }
-            } catch (e) {
-              console.debug("[STREAM] Skipping incomplete chunk")
             }
           }
         }
       }
-    }
 
-    if (!accumulatedContent) {
+      if (!accumulatedContent) {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === tempAssistantMessageId || msg.id.startsWith("temp-assistant")
+              ? { ...msg, content: "Lo siento, no pude generar una respuesta." }
+              : msg,
+          ),
+        )
+      }
+    } catch (error) {
+      console.error("[CHAT] Error sending message:", error)
+
+      let errorContent = "Error de conexión. Por favor, verifica tu conexión a internet e intenta nuevamente."
+
+      if (error instanceof Error) {
+        if (error.message.includes("401") || error.message.includes("403")) {
+          errorContent = "Error de autenticación. Por favor, inicia sesión nuevamente."
+        } else if (error.message.includes("404")) {
+          errorContent = "Error: Sesión no encontrada. Por favor, crea una nueva conversación."
+        } else if (error.message.includes("500")) {
+          errorContent = "Error interno del servidor. Por favor, intenta nuevamente."
+        }
+      }
+
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === tempAssistantMessageId || msg.id.startsWith("temp-assistant")
-            ? { ...msg, content: "Lo siento, no pude generar una respuesta." }
-            : msg
-        )
+            ? { ...msg, content: errorContent }
+            : msg,
+        ),
       )
+    } finally {
+      setIsLoading(false)
     }
-  } catch (error) {
-    console.error("[CHAT] Error sending message:", error)
-
-    let errorContent = "Error de conexión. Por favor, verifica tu conexión a internet e intenta nuevamente."
-
-    if (error instanceof Error) {
-      if (error.message.includes("401") || error.message.includes("403")) {
-        errorContent = "Error de autenticación. Por favor, inicia sesión nuevamente."
-      } else if (error.message.includes("404")) {
-        errorContent = "Error: Sesión no encontrada. Por favor, crea una nueva conversación."
-      } else if (error.message.includes("500")) {
-        errorContent = "Error interno del servidor. Por favor, intenta nuevamente."
-      }
-    }
-
-    setMessages((prev) =>
-      prev.map((msg) =>
-        msg.id === tempAssistantMessageId || msg.id.startsWith("temp-assistant")
-          ? { ...msg, content: errorContent }
-          : msg
-      )
-    )
-  } finally {
-    setIsLoading(false)
   }
-}
   const createNewConversation = async () => {
     try {
       console.log("[CREATE CONVERSATION] User:", user)
@@ -691,18 +687,17 @@ const sendMessage = async (e: React.FormEvent) => {
   }
 
   const WelcomeScreen = () => (
-    <div className="flex-1 flex items-center justify-center p-8">
-      <div className="text-center max-w-md">
-        <div className="mb-6">
-          <Brain className="h-16 w-16 text-primary mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-foreground mb-2">¡Hola, {user?.full_name || user?.username}!</h2>
-          <p className="text-muted-foreground mb-6">
-            Soy Clara, tu asistente de IA especializado en estrategia de marca y marketing. ¿En qué puedo ayudarte hoy?
+    <div className="flex-1 flex flex-col items-center justify-center p-8 bg-white">
+      <div className="text-center max-w-2xl mb-8">
+        <div className="mb-8">
+          <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center mx-auto mb-6">
+            <Brain className="h-10 w-10 text-white" />
+          </div>
+          <h2 className="text-3xl font-bold text-primary mb-4">¡Hola, {user?.full_name || user?.username}!</h2>
+          <p className="text-primary text-lg mb-2">
+            Soy CLARA, tu asistente de IA especializado en estrategia de marca y marketing
           </p>
-          <Button onClick={createNewConversation} size="lg" className="w-full max-w-xs">
-            <Plus className="h-5 w-5 mr-2" />
-            Iniciar nuevo chat
-          </Button>
+          <p className="text-muted-foreground text-base">¿En qué puedo ayudarte hoy?</p>
         </div>
       </div>
     </div>
@@ -725,9 +720,9 @@ const sendMessage = async (e: React.FormEvent) => {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-white">
       {/* Header */}
-      <div className="border-border p-4 bg-background">
+      <div className="border-b border-border p-4 bg-white">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <Button variant="ghost" size="sm" className="md:hidden" onClick={onToggleSidebar}>
@@ -747,10 +742,10 @@ const sendMessage = async (e: React.FormEvent) => {
             )}
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-3">
             {conversationId && (
               <Button
-                variant="outline"
+                variant="default"
                 size="sm"
                 onClick={() => {
                   console.log("[v0] Share button clicked")
@@ -759,10 +754,10 @@ const sendMessage = async (e: React.FormEvent) => {
                   console.log("[v0] isNaN check:", isNaN(Number(conversationId)))
                   setShowShareDialog(true)
                 }}
-                className="flex items-center space-x-2"
+                className="flex items-center space-x-2 bg-primary hover:bg-primary/90"
               >
                 <Share2 className="h-4 w-4" />
-                <span className="hidden sm:inline">Compartir</span>
+                <span>Compartir</span>
               </Button>
             )}
             {projectId && (
@@ -776,9 +771,9 @@ const sendMessage = async (e: React.FormEvent) => {
                 <span className="hidden sm:inline">Añadir archivos</span>
               </Button>
             )}
-            <Badge variant="primary" className="text-xs">
+            <span className="text-sm font-medium text-primary px-4 py-1.5 rounded-full bg-[#EBEEFF]">
               {user?.company?.name}
-            </Badge>
+            </span>
           </div>
         </div>
       </div>
@@ -945,7 +940,7 @@ const sendMessage = async (e: React.FormEvent) => {
       {!conversationId ? (
         <WelcomeScreen />
       ) : (
-        <ScrollArea className="flex-1 p-4 overflow-auto">
+        <ScrollArea className="flex-1 p-4 overflow-auto bg-white">
           {isLoadingMessages ? (
             <div className="flex items-center justify-center h-32">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -1285,7 +1280,7 @@ const sendMessage = async (e: React.FormEvent) => {
                         ) && (
                           <p className="text-xs opacity-70 mt-2">{new Date(message.timestamp).toLocaleTimeString()}</p>
                         )}
-                    {message.role === "user" && !message.id.startsWith('temp-') && (
+                        {message.role === "user" && !message.id.startsWith("temp-") && (
                           <div className="flex items-center space-x-2 mt-2 pt-2 border-t border-primary-foreground/20">
                             <Button
                               size="sm"
@@ -1330,23 +1325,24 @@ const sendMessage = async (e: React.FormEvent) => {
       )}
 
       {/* Input Area */}
-      {conversationId && (
-        <div className="border-border p-4 bg-background">
+      {conversationId ? (
+        <div className="border-t border-border p-6 bg-white">
           <div className="max-w-4xl mx-auto">
-            <div className="flex items-center space-x-2 mb-3">
+            <div className="flex items-center space-x-2 mb-4">
               <Switch id="require-analysis" checked={requireAnalysis} onCheckedChange={setRequireAnalysis} />
               <Label htmlFor="require-analysis" className="text-sm text-muted-foreground cursor-pointer">
                 Generar análisis conceptual y plan de acción estructurado
               </Label>
             </div>
 
-            <div className="flex space-x-2">
+            <div className="flex items-center space-x-3 bg-white border-2 border-border rounded-full px-6 py-3 shadow-sm hover:border-primary/50 transition-colors">
+              <Plus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
               <Input
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                placeholder="Escribe tu mensaje sobre branding o marketing..."
+                placeholder="Escribe tu consulta para Clara"
                 disabled={isLoading}
-                className="flex-1"
+                className="flex-1 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-base px-0"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault()
@@ -1354,7 +1350,77 @@ const sendMessage = async (e: React.FormEvent) => {
                   }
                 }}
               />
-              <Button onClick={sendMessage} disabled={isLoading || !inputValue.trim()}>
+              <button className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                  <line x1="12" x2="12" y1="19" y2="22" />
+                </svg>
+              </button>
+              <Button
+                onClick={sendMessage}
+                disabled={isLoading || !inputValue.trim()}
+                size="icon"
+                className="rounded-full h-10 w-10 bg-primary hover:bg-primary/90 flex-shrink-0"
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="border-t border-border p-6 bg-white">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-center space-x-3 bg-white border-2 border-border rounded-full px-6 py-3 shadow-sm hover:border-primary/50 transition-colors">
+              <Plus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+              <Input
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                placeholder="Escribe tu consulta para Clara"
+                disabled={isLoading}
+                className="flex-1 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-base px-0"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault()
+                    if (inputValue.trim()) {
+                      createNewConversation()
+                    }
+                  }
+                }}
+              />
+              <button className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                  <line x1="12" x2="12" y1="19" y2="22" />
+                </svg>
+              </button>
+              <Button
+                onClick={createNewConversation}
+                disabled={isLoading || !inputValue.trim()}
+                size="icon"
+                className="rounded-full h-10 w-10 bg-primary hover:bg-primary/90 flex-shrink-0"
+              >
                 <Send className="h-4 w-4" />
               </Button>
             </div>

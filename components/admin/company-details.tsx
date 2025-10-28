@@ -1,11 +1,9 @@
 "use client"
-import type React from "react"
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Label } from "@/components/ui/label"
-import { Building2 } from "lucide-react"
+import { Calendar, FileText } from "lucide-react"
 import type { Company } from "@/hooks/use-admin-api"
-import { formatDate } from "@/lib/admin-utils"
 
 interface CompanyDetailsProps {
   company: Company | null
@@ -13,66 +11,88 @@ interface CompanyDetailsProps {
   documentsCount: number
 }
 
-export const CompanyDetails: React.FC<CompanyDetailsProps> = ({ company, companyDetails, documentsCount }) => {
+export function CompanyDetails({ company, companyDetails, documentsCount }: CompanyDetailsProps) {
   if (!company) {
     return (
-      <Card>
-        <CardContent className="flex items-center justify-center h-64">
-          <div className="text-center text-muted-foreground">
-            <Building2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">Selecciona una compañía para ver los detalles</p>
-          </div>
+      <Card className="border-gray-200">
+        <CardContent className="py-12 text-center text-muted-foreground">
+          Selecciona un subagente para ver sus detalles
         </CardContent>
       </Card>
     )
   }
 
+  const details = companyDetails || company
+
+  console.log("[v0] Company details:", details)
+
+  const formatDate = (dateString: string | undefined) => {
+    if (!dateString) return "Fecha no disponible"
+    try {
+      const date = new Date(dateString)
+      if (isNaN(date.getTime())) return "Fecha inválida"
+      return date.toLocaleDateString("es-ES", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    } catch {
+      return "Fecha inválida"
+    }
+  }
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          {company.name}
-          <Badge
-            variant="secondary"
-            className={company.is_active ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}
-          >
-            {company.is_active ? "Activa" : "Inactiva"}
+    <Card className="border-gray-200">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-[#0000FF] text-base">{details.name || "Sin nombre"}</CardTitle>
+          <Badge variant="secondary" className="bg-cyan-400 text-white hover:bg-cyan-400 text-xs">
+            {details.is_active ? "Activo" : "Inactivo"}
           </Badge>
-        </CardTitle>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-          <Label className="text-sm font-medium">Descripción</Label>
-          <p className="text-sm text-muted-foreground mt-1">
-            {companyDetails?.description || company.description || "Sin descripción"}
+          <h4 className="text-xs font-medium text-gray-500 mb-1">Descripción</h4>
+          <p className="text-sm text-gray-900">
+            {details.description ||
+              `Compañía en el sector ${details.sector || "no especificado"} de la industria ${details.industry || "no especificada"}`}
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label className="text-sm font-medium">Industria</Label>
-            <p className="text-sm text-muted-foreground">{company.industry}</p>
-          </div>
-          <div>
-            <Label className="text-sm font-medium">Sector</Label>
-            <p className="text-sm text-muted-foreground">{company.sector}</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label className="text-sm font-medium">Usuarios</Label>
-            <p className="text-sm text-muted-foreground">{company.user_count || 0}</p>
-          </div>
-          <div>
-            <Label className="text-sm font-medium">Documentos</Label>
-            <p className="text-sm text-muted-foreground">{documentsCount}</p>
-          </div>
-        </div>
-
         <div>
-          <Label className="text-sm font-medium">Creada</Label>
-          <p className="text-sm text-muted-foreground">{formatDate(company.created_at)}</p>
+          <h4 className="text-xs font-medium text-gray-500 mb-1">Industria</h4>
+          <p className="text-sm font-medium text-gray-900">{details.industry || "Tecnología"}</p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <h4 className="text-xs font-medium text-gray-500 mb-1">Usuarios</h4>
+            <p className="text-2xl font-bold text-gray-900">{details.user_count || 0}</p>
+          </div>
+          <div>
+            <h4 className="text-xs font-medium text-gray-500 mb-1">Sector</h4>
+            <p className="text-sm font-medium text-gray-900">{details.sector || "CABA"}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <h4 className="text-xs font-medium text-gray-500 mb-1">Creada</h4>
+            <div className="flex items-center space-x-1 text-sm text-gray-900">
+              <Calendar className="h-3 w-3 text-gray-400" />
+              <span>{formatDate(details.created_at)}</span>
+            </div>
+          </div>
+          <div>
+            <h4 className="text-xs font-medium text-gray-500 mb-1">Documentos</h4>
+            <div className="flex items-center space-x-1">
+              <FileText className="h-4 w-4 text-gray-400" />
+              <span className="text-2xl font-bold text-gray-900">{documentsCount}</span>
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>

@@ -5,11 +5,9 @@ import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Brain, Eye, EyeOff } from "lucide-react"
+import { Eye, EyeOff } from "lucide-react"
 import { authAPI } from "@/lib/api"
 
 export default function LoginPage() {
@@ -27,7 +25,7 @@ export default function LoginPage() {
 
     try {
       console.log("[LOGIN] Attempting login with email:", email)
-      
+
       const data = await authAPI.login({ email, password })
       console.log("[LOGIN] Login response received:", data)
 
@@ -44,7 +42,7 @@ export default function LoginPage() {
 
       console.log("[LOGIN] User data structure:")
       console.log("- ID:", data.user.id)
-      console.log("- Email:", data.user.email) 
+      console.log("- Email:", data.user.email)
       console.log("- Username:", data.user.username)
       console.log("- Full Name:", data.user.full_name)
       console.log("- Role:", data.user.role)
@@ -73,11 +71,10 @@ export default function LoginPage() {
         console.log("[LOGIN] Redirecting client to chat")
         router.push("/chat")
       }
-
     } catch (err: any) {
       console.error("[LOGIN] Login error:", err)
       setError(err.message || "Error al iniciar sesión")
-      
+
       // Limpiar localStorage en caso de error
       localStorage.removeItem("user")
     } finally {
@@ -86,89 +83,82 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4">
+    <div className="min-h-screen bg-[#0A2FF1] flex items-center justify-center px-4">
       <div className="w-full max-w-md">
-        {/* Logo */}
-        <div className="flex items-center justify-center mb-8">
-          <Brain className="h-12 w-12 text-primary mr-3" />
-          <h1 className="text-3xl font-bold text-foreground">Clara</h1>
+        <div className="flex items-center justify-center mb-8 gap-2">
+          <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center">
+            <div className="w-3 h-3 rounded-full bg-[#0A2FF1]" />
+          </div>
+          <h1 className="text-3xl font-bold text-white">CLARA</h1>
         </div>
 
-        <Card>
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Iniciar Sesión</CardTitle>
-            <CardDescription>Accede a tu cuenta para comenzar a usar Clara</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
+        <div className="bg-white rounded-3xl p-8 shadow-lg">
+          <h2 className="text-2xl font-semibold text-[#0A2FF1] text-center mb-6">Iniciar sesión</h2>
 
-              <div className="space-y-2">
-                <Label htmlFor="email">Correo Electrónico</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="tu@correo.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Contraseña</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                </div>
-              </div>
-
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Iniciando sesión..." : "Iniciar Sesión"}
-              </Button>
-            </form>
-
-            <div className="mt-6 text-center">
-              <p className="text-sm text-muted-foreground">
-                ¿No tienes una cuenta?{" "}
-                <Link href="/register" className="text-primary hover:underline">
-                  Regístrate aquí
-                </Link>
-              </p>
+            <div className="space-y-2">
+              <label htmlFor="email" className="text-sm font-medium text-[#0A2FF1]">
+                Correo electrónico
+              </label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="Ingrese su@correo.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="h-12 rounded-xl border-[#0A2FF1] focus-visible:ring-[#0A2FF1] placeholder:text-gray-400"
+              />
             </div>
 
-            {/* Debug panel - solo en desarrollo */}
-            {process.env.NODE_ENV === 'development' && (
-              <div className="mt-4 p-3 bg-muted rounded-md">
-                <div className="text-xs font-medium mb-2">Debug Info:</div>
-                <div className="text-xs space-y-1 font-mono">
-                  <div>User: {typeof window !== 'undefined' && localStorage.getItem("user") ? "✓ Presente" : "✗ Ausente"}</div>
-                  <div>Server: http://localhost:8000</div>
-                  <div>Mode: Sin Token (User-based Auth)</div>
-                </div>
+            <div className="space-y-2">
+              <label htmlFor="password" className="text-sm font-medium text-[#0A2FF1]">
+                Contraseña
+              </label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Ingrese su contraseña"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="h-12 rounded-xl border-[#0A2FF1] focus-visible:ring-[#0A2FF1] placeholder:text-gray-400 pr-12"
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#0A2FF1] hover:text-[#0A2FF1]/80"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full h-12 bg-[#0A2FF1] hover:bg-[#0A2FF1]/90 text-white rounded-xl font-medium text-base mt-6"
+              disabled={isLoading}
+            >
+              {isLoading ? "Iniciando sesión..." : "Iniciar sesión"}
+            </Button>
+          </form>
+
+          <div className="mt-6 flex items-center justify-center gap-8 text-sm">
+            <Link href="/register" className="text-[#0A2FF1] hover:underline">
+              Crear una cuenta
+            </Link>
+            <Link href="/forgot-password" className="text-[#0A2FF1] hover:underline">
+              He olvidado la contraseña
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   )

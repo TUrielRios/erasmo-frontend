@@ -1,109 +1,119 @@
 "use client"
+
 import type React from "react"
-import { useState } from "react"
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
-import { Upload, FileText, MoreHorizontal, Edit, Trash2 } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { FileText, Upload, MoreHorizontal, Trash2, Edit } from "lucide-react"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Loader2 } from "lucide-react"
 import type { Document } from "@/hooks/use-admin-api"
 
 interface DocumentsListProps {
-  documents: Document[] | null
+  documents: Document[]
   loading: boolean
   onUpload: () => void
-  onEdit: (document: Document) => void
-  onDelete: (documentId: string) => void
+  onEdit: (doc: Document) => void
+  onDelete: (docId: number) => void
 }
 
-export const DocumentsList: React.FC<DocumentsListProps> = ({ documents, loading, onUpload, onEdit, onDelete }) => {
-  const [showMenuForDoc, setShowMenuForDoc] = useState<string | null>(null)
-  const documentsArray = Array.isArray(documents) ? documents : []
-
-  const handleToggleMenu = (docId: string) => {
-    console.log("🔵 Botón clickeado para documento:", docId)
-    setShowMenuForDoc(showMenuForDoc === docId ? null : docId)
+export function DocumentsList({ documents, loading, onUpload, onEdit, onDelete }: DocumentsListProps) {
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return "0 Bytes"
+    const k = 1024
+    const sizes = ["Bytes", "KB", "MB", "GB"]
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
   }
 
-  const handleEdit = (doc: Document) => {
-    console.log("✏️ EDIT CLICKED:", doc.filename)
-    setShowMenuForDoc(null)
+  const getCategoryLabel = (category: string) => {
+    const labels: Record<string, string> = {
+      knowledge_base: "Base de conocimiento",
+      instructions: "Instrucciones",
+      company_info: "Información de empresa",
+    }
+    return labels[category] || category
+  }
+
+  const handleEdit = (e: React.MouseEvent, doc: Document) => {
+    e.preventDefault()
+    e.stopPropagation()
+    console.log("[v0] Editing document:", doc.id)
     onEdit(doc)
   }
 
-  const handleDelete = (docId: string) => {
-    console.log("🗑️ DELETE CLICKED:", docId)
-    setShowMenuForDoc(null)
+  const handleDelete = (e: React.MouseEvent, docId: number) => {
+    e.preventDefault()
+    e.stopPropagation()
+    console.log("[v0] Deleting document:", docId)
     onDelete(docId)
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          Documentos ({documentsArray.length})
-          <Button size="sm" onClick={onUpload}>
-            <Upload className="h-4 w-4 mr-2" />
-            Subir
-          </Button>
-        </CardTitle>
+    <Card className="border-gray-200">
+      <CardHeader className="flex flex-row items-center justify-between pb-3">
+        <CardTitle className="text-[#0000FF] text-base">Documentos</CardTitle>
+        <Button size="sm" onClick={onUpload} className="bg-[#0000FF] hover:bg-[#0000DD] text-xs">
+          <Upload className="h-3 w-3 mr-1" />
+          Subir
+        </Button>
       </CardHeader>
       <CardContent>
-        <ScrollArea className="h-64">
+        {loading && documents.length === 0 ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : documents.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground text-sm">No hay documentos cargados</div>
+        ) : (
           <div className="space-y-2">
-            {documentsArray.map((doc) => (
-              <div key={doc.id} className="relative flex items-center justify-between p-3 border rounded-lg bg-white">
-                <div className="flex-1 min-w-0">
-                  <h5 className="text-sm font-medium truncate">{doc.filename}</h5>
-                  <p className="text-xs text-gray-500">
-                    {doc.category} • Prioridad {doc.priority}
-                  </p>
-                </div>
-                
-                <div className="relative">
-                  {/* Botón de tres puntos */}
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => handleToggleMenu(doc.id)}
-                    className="ml-2 h-8 w-8 p-0"
-                    type="button"
-                  >
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-
-                  {/* Menú manual */}
-                  {showMenuForDoc === doc.id && (
-                    <div className="absolute right-0 top-8 z-50 min-w-[160px] bg-white border border-gray-200 rounded-md shadow-lg">
-                      <div className="py-1">
-                        <button
-                          onClick={() => handleEdit(doc)}
-                          className="flex w-full items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                        >
-                          <Edit className="h-4 w-4 mr-2" />
-                          Editar
-                        </button>
-                        <button
-                          onClick={() => handleDelete(doc.id)}
-                          className="flex w-full items-center px-3 py-2 text-sm text-red-600 hover:bg-gray-100"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Eliminar
-                        </button>
-                      </div>
+            {documents.map((doc) => (
+              <div
+                key={doc.id}
+                className="flex items-center justify-between p-3 rounded-lg bg-white border border-gray-200 hover:bg-gray-50"
+              >
+                <div className="flex items-center space-x-3 flex-1">
+                  <FileText className="h-4 w-4 text-gray-400" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate text-gray-900">{doc.filename}</p>
+                    <div className="flex items-center space-x-2 mt-1">
+                      <Badge variant="outline" className="text-xs text-gray-600 border-gray-300">
+                        {getCategoryLabel(doc.category)}
+                      </Badge>
+                      <span className="text-xs text-gray-500">{formatFileSize(doc.file_size)}</span>
                     </div>
-                  )}
+                  </div>
                 </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        console.log("[v0] Document dropdown trigger clicked")
+                      }}
+                    >
+                      <MoreHorizontal className="h-4 w-4 text-gray-400" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={(e) => handleEdit(e, doc)}>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Editar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => handleDelete(e, doc.id)} className="text-destructive">
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Eliminar
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             ))}
-
-            {documentsArray.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                <FileText className="h-8 w-8 mx-auto mb-2" />
-                <p className="text-sm">No hay documentos</p>
-              </div>
-            )}
           </div>
-        </ScrollArea>
+        )}
       </CardContent>
     </Card>
   )

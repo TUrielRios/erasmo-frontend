@@ -1,16 +1,15 @@
 "use client"
-import type React from "react"
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Building2 } from "lucide-react"
 import type { Company } from "@/hooks/use-admin-api"
-import { formatDate } from "@/lib/admin-utils"
 
 interface RecentCompaniesProps {
   companies: Company[]
 }
 
-export const RecentCompanies: React.FC<RecentCompaniesProps> = ({ companies }) => {
-  if (!companies || companies.length === 0) return null
-
+export function RecentCompanies({ companies }: RecentCompaniesProps) {
   return (
     <Card>
       <CardHeader>
@@ -19,14 +18,21 @@ export const RecentCompanies: React.FC<RecentCompaniesProps> = ({ companies }) =
       <CardContent>
         <div className="space-y-4">
           {companies.map((company) => (
-            <div key={company.id} className="flex items-center justify-between p-3 border rounded-lg">
-              <div>
-                <h4 className="font-medium">{company.name}</h4>
-                <p className="text-sm text-muted-foreground">Creada el {formatDate(company.created_at)}</p>
+            <div key={company.id} className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                  <Building2 className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="font-medium">{company.name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {company.industry} - {company.sector}
+                  </p>
+                </div>
               </div>
-              <div className="text-right">
-                <p className="text-sm font-medium">{company.user_count || 0} usuarios</p>
-              </div>
+              <Badge variant={company.is_active ? "default" : "secondary"}>
+                {company.is_active ? "Activa" : "Inactiva"}
+              </Badge>
             </div>
           ))}
         </div>
