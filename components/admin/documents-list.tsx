@@ -1,12 +1,11 @@
 "use client"
 
 import type React from "react"
-
+import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { FileText, Upload, MoreHorizontal, Trash2, Edit } from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Loader2 } from "lucide-react"
 import type { Document } from "@/hooks/use-admin-api"
 
@@ -19,6 +18,8 @@ interface DocumentsListProps {
 }
 
 export function DocumentsList({ documents, loading, onUpload, onEdit, onDelete }: DocumentsListProps) {
+  const [showMenuForDoc, setShowMenuForDoc] = useState<number | null>(null)
+
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return "0 Bytes"
     const k = 1024
@@ -36,17 +37,20 @@ export function DocumentsList({ documents, loading, onUpload, onEdit, onDelete }
     return labels[category] || category
   }
 
-  const handleEdit = (e: React.MouseEvent, doc: Document) => {
-    e.preventDefault()
-    e.stopPropagation()
-    console.log("[v0] Editing document:", doc.id)
+  const handleToggleMenu = (docId: number) => {
+    console.log("🔵 Botón clickeado para documento:", docId)
+    setShowMenuForDoc(showMenuForDoc === docId ? null : docId)
+  }
+
+  const handleEdit = (doc: Document) => {
+    console.log("✏️ EDIT CLICKED:", doc.filename)
+    setShowMenuForDoc(null)
     onEdit(doc)
   }
 
-  const handleDelete = (e: React.MouseEvent, docId: number) => {
-    e.preventDefault()
-    e.stopPropagation()
-    console.log("[v0] Deleting document:", docId)
+  const handleDelete = (docId: number) => {
+    console.log("🗑️ DELETE CLICKED:", docId)
+    setShowMenuForDoc(null)
     onDelete(docId)
   }
 
@@ -85,31 +89,40 @@ export function DocumentsList({ documents, loading, onUpload, onEdit, onDelete }
                     </div>
                   </div>
                 </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        console.log("[v0] Document dropdown trigger clicked")
-                      }}
-                    >
-                      <MoreHorizontal className="h-4 w-4 text-gray-400" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={(e) => handleEdit(e, doc)}>
-                      <Edit className="h-4 w-4 mr-2" />
-                      Editar
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={(e) => handleDelete(e, doc.id)} className="text-destructive">
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Eliminar
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+
+                {/* Menú manual como en el código anterior */}
+                <div className="relative">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleToggleMenu(doc.id)}
+                    className="ml-2 h-8 w-8 p-0"
+                    type="button"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+
+                  {showMenuForDoc === doc.id && (
+                    <div className="absolute right-0 top-8 z-50 min-w-[160px] bg-white border border-gray-200 rounded-md shadow-lg">
+                      <div className="py-1">
+                        <button
+                          onClick={() => handleEdit(doc)}
+                          className="flex w-full items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => handleDelete(doc.id)}
+                          className="flex w-full items-center px-3 py-2 text-sm text-red-600 hover:bg-gray-100"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Eliminar
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             ))}
           </div>
