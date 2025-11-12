@@ -130,14 +130,11 @@ export const getCompanyUsers = async (): Promise<User[]> => {
   }
 
   try {
-    // <CHANGE> Agregar user_id como query parameter
-    const response = await fetch(
-      `${BASE_URL}/api/v1/users/company/${user.company.id}?user_id=${user.id}`,
-      {
-        method: "GET",
-        headers: getAuthHeaders(),
-      }
-    )
+    //  Agregar user_id como query parameter
+    const response = await fetch(`${BASE_URL}/api/v1/users/company/${user.company.id}?user_id=${user.id}`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    })
 
     if (!response.ok) {
       throw new Error("Failed to fetch company users")

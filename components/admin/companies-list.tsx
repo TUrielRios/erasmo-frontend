@@ -37,7 +37,7 @@ export function CompaniesList({
   return (
     <Card className="border-gray-200">
       <CardHeader className="flex flex-row items-center justify-between pb-3">
-        <CardTitle className="text-[#0000FF] text-base">Subagentes</CardTitle>
+        <CardTitle className="text-[#0A2FF1] text-base text-xl">Subagentes</CardTitle>
         <Button size="sm" className="bg-[#0000FF] hover:bg-[#0000DD] rounded-full h-8 w-8 p-0" onClick={onAddCompany}>
           <Plus className="h-4 w-4" />
         </Button>

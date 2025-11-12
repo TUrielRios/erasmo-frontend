@@ -1,8 +1,7 @@
 "use client"
 
-import { Home, Users, LogOut } from "lucide-react"
+import { LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 import { removeAuthToken } from "@/lib/auth"
 import { useRouter } from "next/navigation"
@@ -22,12 +21,16 @@ export function AdminSidebar({ activeTab, setActiveTab, user }: AdminSidebarProp
   }
 
   return (
-    <div className="h-full bg-[#0000FF] text-white flex flex-col">
+    <div
+      className={cn(
+        "fixed top-0 left-0 h-screen w-64 bg-[#0000FF] text-white flex flex-col shadow-lg z-50"
+      )}
+    >
       {/* Header */}
       <div className="p-6 border-b border-white/10">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-            <Users className="h-5 w-5" />
+          <div className="w-10 h-10 rounded-full /20 flex items-center justify-center">
+            <img src="/icons/logo_clara.svg" alt="Logo" className="w-6 h-6" />
           </div>
           <div>
             <h2 className="font-semibold text-base">Admin Panel</h2>
@@ -37,27 +40,27 @@ export function AdminSidebar({ activeTab, setActiveTab, user }: AdminSidebarProp
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
         <Button
           variant="ghost"
           className={cn(
             "w-full justify-start text-white hover:bg-white/10 h-11",
-            activeTab === "dashboard" && "bg-white/90 text-[#0000FF] hover:bg-white/90",
+            activeTab === "dashboard" && "bg-white/90 text-[#0000FF] hover:bg-white/90"
           )}
           onClick={() => setActiveTab("dashboard")}
         >
-          <Home className="h-4 w-4 mr-3" />
+          <img src="/icons/casa.svg" alt="" className="h-4 w-4 mr-2" />
           Dashboard
         </Button>
         <Button
           variant="ghost"
           className={cn(
             "w-full justify-start text-white hover:bg-white/10 h-11",
-            activeTab === "companies" && "bg-white/90 text-[#0000FF] hover:bg-white/90",
+            activeTab === "companies" && "bg-white/90 text-[#0000FF] hover:bg-white/90"
           )}
           onClick={() => setActiveTab("companies")}
         >
-          <Users className="h-4 w-4 mr-3" />
+          <img src="/icons/parlante.svg" alt="subagentes" className="h-4 w-4 mr-2" />
           Subagentes
         </Button>
       </nav>
@@ -66,17 +69,18 @@ export function AdminSidebar({ activeTab, setActiveTab, user }: AdminSidebarProp
       <div className="p-4 border-t border-white/10">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <Avatar className="h-8 w-8">
-              <AvatarFallback className="bg-white/20 text-white text-xs">
-                {user?.username?.substring(0, 2).toUpperCase() || "AD"}
-              </AvatarFallback>
-            </Avatar>
+            <img src="/icons/user_circulo.svg" alt="" className="h-6 w-6" />
             <div className="text-sm">
               <p className="font-medium">{user?.username || "Sofía"}</p>
               <p className="text-xs text-white/70">Administrador</p>
             </div>
           </div>
-          <Button variant="ghost" size="sm" className="text-white hover:bg-white/10" onClick={handleLogout}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-white hover:bg-white/10"
+            onClick={handleLogout}
+          >
             <LogOut className="h-4 w-4" />
           </Button>
         </div>

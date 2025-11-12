@@ -14,26 +14,22 @@ export function DashboardStats({ dashboard }: DashboardStatsProps) {
     {
       title: "Total Compañías",
       value: dashboard.total_companies || 0,
-      icon: Building2,
-      color: "text-blue-600",
+      icon: "/icons/parlante.svg",
     },
     {
-      title: "Compañías Activas",
+      title: "Conversaciones",
       value: dashboard.active_companies || 0,
-      icon: Activity,
-      color: "text-green-600",
+      icon: "/icons/viñeta.svg",
     },
     {
       title: "Total Usuarios",
       value: dashboard.total_users || 0,
-      icon: Users,
-      color: "text-purple-600",
+      icon: "/icons/user.svg",
     },
     {
-      title: "Total Documentos",
+      title: "Documentos",
       value: dashboard.total_documents || 0,
-      icon: FileText,
-      color: "text-orange-600",
+      icon: "/icons/hoja.svg",
     },
   ]
 
@@ -42,9 +38,10 @@ export function DashboardStats({ dashboard }: DashboardStatsProps) {
       {stats.map((stat) => (
         <Card key={stat.title}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-            <stat.icon className={`h-4 w-4 ${stat.color}`} />
+            <CardTitle className="text-m font-bold text-blue-600 ">{stat.title}</CardTitle>
+             <img src={stat.icon} alt={stat.title} className="h-5 w-5" />
           </CardHeader>
+
           <CardContent>
             <div className="text-2xl font-bold">{stat.value}</div>
           </CardContent>

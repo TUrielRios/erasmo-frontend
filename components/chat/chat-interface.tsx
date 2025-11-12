@@ -12,8 +12,6 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import {
   Menu,
-  Send,
-  Brain,
   Loader2,
   ChevronDown,
   ChevronUp,
@@ -30,8 +28,8 @@ import {
   Edit,
   X,
   Check,
-  Share2,
 } from "lucide-react"
+import Image from "next/image"
 import { getUser } from "@/lib/auth"
 import { projectFileService } from "@/lib/project-files"
 import { chatService } from "@/lib/chat"
@@ -66,7 +64,6 @@ interface ProjectFile {
   created_at: string
 }
 
-// Get API URL from environment variable
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
 export function ChatInterface({
@@ -99,7 +96,6 @@ export function ChatInterface({
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Load user on mount
   useEffect(() => {
     const currentUser = getUser()
     console.log("[CHAT INTERFACE] User loaded:", currentUser)
@@ -153,7 +149,6 @@ export function ChatInterface({
     return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i]
   }
 
-  // Load project files when projectId changes
   useEffect(() => {
     if (projectId && showFileManager) {
       loadProjectFiles()
@@ -248,7 +243,6 @@ export function ChatInterface({
   }
 
   const handleSaveEdit = async (messageId: string) => {
-    // Validar que el messageId sea un número válido
     const numericMessageId = Number(messageId)
     if (isNaN(numericMessageId) || messageId.startsWith("temp-")) {
       console.error("[EDIT MESSAGE] Invalid message ID for editing:", messageId)
@@ -263,18 +257,14 @@ export function ChatInterface({
     }
 
     try {
-      // Update the message in the database
       const updatedMessage = await chatService.updateMessage(numericMessageId, {
         content: editingContent.trim(),
       })
 
-      // Find the index of the edited message
       const editedMessageIndex = messages.findIndex((msg) => msg.id === messageId)
 
-      // Delete all messages after the edited message from the database
       const messagesToDelete = messages.slice(editedMessageIndex + 1)
       for (const msg of messagesToDelete) {
-        // También validar los IDs aquí
         const msgNumericId = Number(msg.id)
         if (!isNaN(msgNumericId) && !msg.id.startsWith("temp-")) {
           try {
@@ -285,7 +275,6 @@ export function ChatInterface({
         }
       }
 
-      // Update local state: keep messages up to and including the edited one
       const updatedMessages = messages.slice(0, editedMessageIndex).concat({
         ...messages[editedMessageIndex],
         content: updatedMessage.content,
@@ -295,7 +284,6 @@ export function ChatInterface({
       setMessages(updatedMessages)
       handleCancelEdit()
 
-      // Now send the edited message to get a new AI response
       setIsLoading(true)
 
       const assistantMessageId = (Date.now() + 1).toString()
@@ -324,7 +312,7 @@ export function ChatInterface({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.JSON.stringify(requestBody),
+        body: JSON.stringify(requestBody),
       })
 
       if (!response.ok) {
@@ -388,7 +376,6 @@ export function ChatInterface({
   const handleDeleteMessage = async (messageId: string) => {
     if (!confirm("¿Estás seguro de que quieres eliminar este mensaje?")) return
 
-    // Validar que el messageId sea un número válido
     const numericMessageId = Number(messageId)
     if (isNaN(numericMessageId) || messageId.startsWith("temp-")) {
       console.error("[DELETE MESSAGE] Invalid message ID for deletion:", messageId)
@@ -496,7 +483,7 @@ export function ChatInterface({
 
     const tempUserMessageId = `temp-user-${Date.now()}`
     const userMessage: Message = {
-      id: tempUserMessageId, // ID temporal
+      id: tempUserMessageId,
       content: inputValue.trim(),
       role: "user",
       timestamp: new Date().toISOString(),
@@ -508,7 +495,7 @@ export function ChatInterface({
 
     const tempAssistantMessageId = `temp-assistant-${Date.now() + 1}`
     const assistantMessage: Message = {
-      id: tempAssistantMessageId, // ID temporal
+      id: tempAssistantMessageId,
       content: "",
       role: "assistant",
       timestamp: new Date().toISOString(),
@@ -564,7 +551,6 @@ export function ChatInterface({
               try {
                 const parsed = JSON.parse(data)
 
-                // ✅ Actualizar ID del mensaje del usuario cuando llegue del backend
                 if (parsed.type === "user_message_id") {
                   setMessages((prev) =>
                     prev.map((msg) =>
@@ -573,7 +559,6 @@ export function ChatInterface({
                   )
                 }
 
-                // ✅ Actualizar ID del mensaje del asistente cuando llegue del backend
                 if (parsed.type === "assistant_message_id") {
                   setMessages((prev) =>
                     prev.map((msg) =>
@@ -582,7 +567,6 @@ export function ChatInterface({
                   )
                 }
 
-                // Manejar contenido del mensaje
                 if (parsed.content || parsed.type === "content") {
                   accumulatedContent += parsed.content || ""
 
@@ -637,6 +621,7 @@ export function ChatInterface({
       setIsLoading(false)
     }
   }
+
   const createNewConversation = async () => {
     try {
       console.log("[CREATE CONVERSATION] User:", user)
@@ -676,7 +661,6 @@ export function ChatInterface({
       const newConversation = await response.json()
       console.log("[CREATE CONVERSATION] New conversation:", newConversation)
 
-      // Usar el callback en lugar de window.location.href
       if (onConversationCreated) {
         onConversationCreated(newConversation.session_id)
       }
@@ -687,15 +671,15 @@ export function ChatInterface({
   }
 
   const WelcomeScreen = () => (
-    <div className="flex-1 flex flex-col items-center justify-center p-8 bg-white">
-      <div className="text-center max-w-2xl mb-8">
-        <div className="mb-8">
-          <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center mx-auto mb-6">
-            <Brain className="h-10 w-10 text-white" />
+    <div className="flex-1 flex flex-col items-center justify-center bg-white">
+      <div className="text-center max-w-2xl w-full px-8">
+        <div className="mb-12">
+          <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center mx-auto mb-6">
+            <Image src="/icons/logo_clara_azul.svg" alt="Clara Logo" width={60} height={60} />
           </div>
-          <h2 className="text-3xl font-bold text-primary mb-4">¡Hola, {user?.full_name || user?.username}!</h2>
-          <p className="text-primary text-lg mb-2">
-            Soy CLARA, tu asistente de IA especializado en estrategia de marca y marketing
+          <h2 className="text-3xl font-bold text-primary mb-3">¡Hola, {user?.full_name || user?.username}!</h2>
+          <p className="text-xs text-primary text-lg mb-2">
+            Soy CLARA, tu asistente de IA especializado en estrategia de marca <br /> y marketing
           </p>
           <p className="text-muted-foreground text-base">¿En qué puedo ayudarte hoy?</p>
         </div>
@@ -722,7 +706,7 @@ export function ChatInterface({
   return (
     <div className="flex flex-col h-full bg-white">
       {/* Header */}
-      <div className="border-b border-border p-4 bg-white">
+      <div className="p-6 bg-white">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <Button variant="ghost" size="sm" className="md:hidden" onClick={onToggleSidebar}>
@@ -756,8 +740,8 @@ export function ChatInterface({
                 }}
                 className="flex items-center space-x-2 bg-primary hover:bg-primary/90"
               >
-                <Share2 className="h-4 w-4" />
-                <span>Compartir</span>
+                <img src="/icons/descarga.svg" alt="compartir icono" className="h-4 w-4 brightness-0 invert" />
+                <span className="hidden sm:inline">Compartir</span>
               </Button>
             )}
             {projectId && (
@@ -946,9 +930,7 @@ export function ChatInterface({
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : messages.length === 0 ? (
-            <div className="text-center text-muted-foreground py-8">
-              Comienza una conversación escribiendo un mensaje abajo
-            </div>
+            <div className="text-center text-muted-foreground py-8"></div>
           ) : (
             <div className="space-y-4 max-w-4xl mx-auto">
               {messages.map((message) => (
@@ -959,350 +941,370 @@ export function ChatInterface({
                   <div
                     className={cn(
                       "max-w-[80%] rounded-lg px-4 py-3",
-                      message.role === "user" ? "bg-primary text-primary-foreground ml-12" : "bg-transparent mr-12",
+                      message.role === "user" ? "bg-[#EBEEFF] text-gray-900 rounded-3xl ml-12" : "bg-transparent mr-12",
                     )}
                   >
-                    {editingMessageId === message.id ? (
-                      <div className="space-y-2">
-                        <Textarea
-                          value={editingContent}
-                          onChange={(e) => setEditingContent(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && e.ctrlKey) {
-                              e.preventDefault()
-                              handleSaveEdit(message.id)
-                            } else if (e.key === "Escape") {
-                              handleCancelEdit()
-                            }
-                          }}
-                          className="w-full min-h-[100px] resize-y"
-                          autoFocus
-                        />
-                        <div className="flex items-center space-x-2">
-                          <Button size="sm" onClick={() => handleSaveEdit(message.id)} className="h-7">
-                            <Check className="h-3 w-3 mr-1" />
-                            Guardar
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={handleCancelEdit} className="h-7">
-                            <X className="h-3 w-3 mr-1" />
-                            Cancelar
-                          </Button>
+                    {message.role === "assistant" && (
+                      <div className="flex items-start gap-3 mb-3">
+                        <div className="flex-shrink-0">
+                          <Image src="/icons/logo_clara_azul.svg" alt="Clara" width={24} height={24} />
                         </div>
-                        <p className="text-xs opacity-70">Presiona Ctrl+Enter para guardar</p>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="text-sm leading-relaxed">
-                          {message.role === "assistant"
-                            ? (() => {
-                                let responseData = null
-                                try {
-                                  if (typeof message.content === "object") {
-                                    responseData = message.content
-                                  } else if (
-                                    typeof message.content === "string" &&
-                                    (message.content.includes("conceptual") || message.content.includes("accional"))
-                                  ) {
-                                    responseData = JSON.parse(message.content)
+                        <div className="flex-1">
+                          {editingMessageId === message.id ? (
+                            <div className="space-y-2">
+                              <Textarea
+                                value={editingContent}
+                                onChange={(e) => setEditingContent(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" && e.ctrlKey) {
+                                    e.preventDefault()
+                                    handleSaveEdit(message.id)
+                                  } else if (e.key === "Escape") {
+                                    handleCancelEdit()
                                   }
-                                } catch (e) {
-                                  responseData = null
-                                }
+                                }}
+                                className="w-full min-h-[100px] resize-y"
+                                autoFocus
+                              />
+                              <div className="flex items-center space-x-2">
+                                <Button size="sm" onClick={() => handleSaveEdit(message.id)} className="h-7">
+                                  <Check className="h-3 w-3 mr-1" />
+                                  Guardar
+                                </Button>
+                                <Button size="sm" variant="ghost" onClick={handleCancelEdit} className="h-7">
+                                  <X className="h-3 w-3 mr-1" />
+                                  Cancelar
+                                </Button>
+                              </div>
+                              <p className="text-xs opacity-70">Presiona Ctrl+Enter para guardar</p>
+                            </div>
+                          ) : (
+                            <>
+                              <div className="text-sm leading-relaxed text-foreground">
+                                {(() => {
+                                  let responseData = null
+                                  try {
+                                    if (typeof message.content === "object") {
+                                      responseData = message.content
+                                    } else if (
+                                      typeof message.content === "string" &&
+                                      (message.content.includes("conceptual") || message.content.includes("accional"))
+                                    ) {
+                                      responseData = JSON.parse(message.content)
+                                    }
+                                  } catch (e) {
+                                    responseData = null
+                                  }
 
-                                if (
-                                  responseData &&
-                                  responseData.response_type !== "normal" &&
-                                  (responseData.conceptual || responseData.accional)
-                                ) {
-                                  const hasConceptual = responseData.conceptual && responseData.conceptual.content
-                                  const hasAccional = responseData.accional && responseData.accional.content
+                                  if (
+                                    responseData &&
+                                    responseData.response_type !== "normal" &&
+                                    (responseData.conceptual || responseData.accional)
+                                  ) {
+                                    const hasConceptual = responseData.conceptual && responseData.conceptual.content
+                                    const hasAccional = responseData.accional && responseData.accional.content
 
-                                  return (
-                                    <div className="space-y-2 min-w-[400px]">
-                                      {hasConceptual && (
-                                        <Card className="mb-3 border border-border hover:shadow-md transition-all duration-200">
-                                          <button
-                                            onClick={() => toggleDropdown(message.id, "conceptual")}
-                                            className="w-full p-4 text-left flex items-center justify-between hover:bg-accent/50 transition-colors rounded-t-lg"
-                                          >
-                                            <div className="flex items-center space-x-3">
-                                              <div className="p-2 rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300">
-                                                <Lightbulb className="h-5 w-5" />
+                                    return (
+                                      <div className="space-y-2 min-w-[400px]">
+                                        {hasConceptual && (
+                                          <Card className="mb-3 border border-border hover:shadow-md transition-all duration-200">
+                                            <button
+                                              onClick={() => toggleDropdown(message.id, "conceptual")}
+                                              className="w-full p-4 text-left flex items-center justify-between hover:bg-accent/50 transition-colors rounded-t-lg"
+                                            >
+                                              <div className="flex items-center space-x-3">
+                                                <div className="p-2 rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300">
+                                                  <Lightbulb className="h-5 w-5" />
+                                                </div>
+                                                <h3 className="font-semibold text-foreground">Análisis Conceptual</h3>
                                               </div>
-                                              <h3 className="font-semibold text-foreground">Análisis Conceptual</h3>
-                                            </div>
-                                            {openDropdowns[`${message.id}-conceptual`] ? (
-                                              <ChevronUp className="h-5 w-5" />
-                                            ) : (
-                                              <ChevronDown className="h-5 w-5" />
-                                            )}
-                                          </button>
+                                              {openDropdowns[`${message.id}-conceptual`] ? (
+                                                <ChevronUp className="h-5 w-5" />
+                                              ) : (
+                                                <ChevronDown className="h-5 w-5" />
+                                              )}
+                                            </button>
 
-                                          {openDropdowns[`${message.id}-conceptual`] && (
-                                            <div className="px-4 pb-4 border-t border-border bg-muted/20">
-                                              <div className="pt-4 prose prose-sm max-w-none dark:prose-invert">
-                                                {responseData.conceptual.content.split("\n").map((line, index) => {
-                                                  if (line.startsWith("### "))
-                                                    return (
-                                                      <h3
-                                                        key={index}
-                                                        className="text-sm font-semibold mt-2 mb-1 text-foreground"
-                                                      >
-                                                        {line.substring(4)}
-                                                      </h3>
-                                                    )
-                                                  if (line.includes("**")) {
-                                                    const parts = line.split(/(\*\*.*?\*\*)/g)
+                                            {openDropdowns[`${message.id}-conceptual`] && (
+                                              <div className="px-4 pb-4 border-t border-border bg-muted/20">
+                                                <div className="pt-4 prose prose-sm max-w-none dark:prose-invert">
+                                                  {responseData.conceptual.content.split("\n").map((line, index) => {
+                                                    if (line.startsWith("### "))
+                                                      return (
+                                                        <h3
+                                                          key={index}
+                                                          className="text-sm font-semibold mt-2 mb-1 text-foreground"
+                                                        >
+                                                          {line.substring(4)}
+                                                        </h3>
+                                                      )
+                                                    if (line.includes("**")) {
+                                                      const parts = line.split(/(\*\*.*?\*\*)/g)
+                                                      return (
+                                                        <p key={index} className="mb-2 text-foreground">
+                                                          {parts.map((part, partIndex) =>
+                                                            part.startsWith("**") && part.endsWith("**") ? (
+                                                              <strong key={partIndex}>{part.slice(2, -2)}</strong>
+                                                            ) : (
+                                                              part
+                                                            ),
+                                                          )}
+                                                        </p>
+                                                      )
+                                                    }
+                                                    if (/^\d+\.\s/.test(line))
+                                                      return (
+                                                        <div key={index} className="ml-4 mb-1 text-foreground">
+                                                          {line}
+                                                        </div>
+                                                      )
+                                                    if (line.startsWith("- "))
+                                                      return (
+                                                        <div key={index} className="ml-4 mb-1 text-foreground">
+                                                          • {line.substring(2)}
+                                                        </div>
+                                                      )
+                                                    if (line.trim() === "") return <br key={index} />
                                                     return (
                                                       <p key={index} className="mb-2 text-foreground">
-                                                        {parts.map((part, partIndex) =>
-                                                          part.startsWith("**") && part.endsWith("**") ? (
-                                                            <strong key={partIndex}>{part.slice(2, -2)}</strong>
-                                                          ) : (
-                                                            part
-                                                          ),
-                                                        )}
+                                                        {line}
                                                       </p>
                                                     )
-                                                  }
-                                                  if (/^\d+\.\s/.test(line))
-                                                    return (
-                                                      <div key={index} className="ml-4 mb-1 text-foreground">
-                                                        {line}
-                                                      </div>
-                                                    )
-                                                  if (line.startsWith("- "))
-                                                    return (
-                                                      <div key={index} className="ml-4 mb-1 text-foreground">
-                                                        • {line.substring(2)}
-                                                      </div>
-                                                    )
-                                                  if (line.trim() === "") return <br key={index} />
-                                                  return (
-                                                    <p key={index} className="mb-2 text-foreground">
-                                                      {line}
-                                                    </p>
-                                                  )
-                                                })}
-                                              </div>
-                                            </div>
-                                          )}
-                                        </Card>
-                                      )}
-
-                                      {hasAccional && (
-                                        <Card className="mb-3 border border-border hover:shadow-md transition-all duration-200">
-                                          <button
-                                            onClick={() => toggleDropdown(message.id, "accional")}
-                                            className="w-full p-4 text-left flex items-center justify-between hover:bg-accent/50 transition-colors rounded-t-lg"
-                                          >
-                                            <div className="flex items-center space-x-3">
-                                              <div className="p-2 rounded-lg bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-300">
-                                                <Target className="h-5 w-5" />
-                                              </div>
-                                              <div>
-                                                <h3 className="font-semibold text-foreground">Plan de Acción</h3>
-                                                <div className="flex items-center space-x-2 mt-1">
-                                                  {responseData.accional.priority && (
-                                                    <Badge variant="outline" className="text-xs">
-                                                      {responseData.accional.priority}
-                                                    </Badge>
-                                                  )}
-                                                  {responseData.accional.timeline && (
-                                                    <Badge
-                                                      variant="secondary"
-                                                      className="text-xs flex items-center space-x-1"
-                                                    >
-                                                      <Clock className="h-3 w-3" />
-                                                      <span>{responseData.accional.timeline}</span>
-                                                    </Badge>
-                                                  )}
+                                                  })}
                                                 </div>
                                               </div>
-                                            </div>
-                                            {openDropdowns[`${message.id}-accional`] ? (
-                                              <ChevronUp className="h-5 w-5" />
-                                            ) : (
-                                              <ChevronDown className="h-5 w-5" />
                                             )}
-                                          </button>
+                                          </Card>
+                                        )}
 
-                                          {openDropdowns[`${message.id}-accional`] && (
-                                            <div className="px-4 pb-4 border-t border-border bg-muted/20">
-                                              <div className="pt-4 prose prose-sm max-w-none dark:prose-invert">
-                                                {responseData.accional.content.split("\n").map((line, index) => {
-                                                  if (line.startsWith("### "))
-                                                    return (
-                                                      <h3
-                                                        key={index}
-                                                        className="text-sm font-semibold mt-2 mb-1 text-foreground"
+                                        {hasAccional && (
+                                          <Card className="mb-3 border border-border hover:shadow-md transition-all duration-200">
+                                            <button
+                                              onClick={() => toggleDropdown(message.id, "accional")}
+                                              className="w-full p-4 text-left flex items-center justify-between hover:bg-accent/50 transition-colors rounded-t-lg"
+                                            >
+                                              <div className="flex items-center space-x-3">
+                                                <div className="p-2 rounded-lg bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-300">
+                                                  <Target className="h-5 w-5" />
+                                                </div>
+                                                <div>
+                                                  <h3 className="font-semibold text-foreground">Plan de Acción</h3>
+                                                  <div className="flex items-center space-x-2 mt-1">
+                                                    {responseData.accional.priority && (
+                                                      <Badge variant="outline" className="text-xs">
+                                                        {responseData.accional.priority}
+                                                      </Badge>
+                                                    )}
+                                                    {responseData.accional.timeline && (
+                                                      <Badge
+                                                        variant="secondary"
+                                                        className="text-xs flex items-center space-x-1"
                                                       >
-                                                        {line.substring(4)}
-                                                      </h3>
-                                                    )
-                                                  if (line.includes("**")) {
-                                                    const parts = line.split(/(\*\*.*?\*\*)/g)
+                                                        <Clock className="h-3 w-3" />
+                                                        <span>{responseData.accional.timeline}</span>
+                                                      </Badge>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                              </div>
+                                              {openDropdowns[`${message.id}-accional`] ? (
+                                                <ChevronUp className="h-5 w-5" />
+                                              ) : (
+                                                <ChevronDown className="h-5 w-5" />
+                                              )}
+                                            </button>
+
+                                            {openDropdowns[`${message.id}-accional`] && (
+                                              <div className="px-4 pb-4 border-t border-border bg-muted/20">
+                                                <div className="pt-4 prose prose-sm max-w-none dark:prose-invert">
+                                                  {responseData.accional.content.split("\n").map((line, index) => {
+                                                    if (line.startsWith("### "))
+                                                      return (
+                                                        <h3
+                                                          key={index}
+                                                          className="text-sm font-semibold mt-2 mb-1 text-foreground"
+                                                        >
+                                                          {line.substring(4)}
+                                                        </h3>
+                                                      )
+                                                    if (line.includes("**")) {
+                                                      const parts = line.split(/(\*\*.*?\*\*)/g)
+                                                      return (
+                                                        <p key={index} className="mb-2 text-foreground">
+                                                          {parts.map((part, partIndex) =>
+                                                            part.startsWith("**") && part.endsWith("**") ? (
+                                                              <strong key={partIndex}>{part.slice(2, -2)}</strong>
+                                                            ) : (
+                                                              part
+                                                            ),
+                                                          )}
+                                                        </p>
+                                                      )
+                                                    }
+                                                    if (/^\d+\.\s/.test(line))
+                                                      return (
+                                                        <div key={index} className="ml-4 mb-1 text-foreground">
+                                                          {line}
+                                                        </div>
+                                                      )
+                                                    if (line.startsWith("   - "))
+                                                      return (
+                                                        <div key={index} className="ml-8 mb-1 text-foreground">
+                                                          • {line.substring(5)}
+                                                        </div>
+                                                      )
+                                                    if (line.startsWith("- "))
+                                                      return (
+                                                        <div key={index} className="ml-4 mb-1 text-foreground">
+                                                          • {line.substring(2)}
+                                                        </div>
+                                                      )
+                                                    if (line.trim() === "") return <br key={index} />
                                                     return (
                                                       <p key={index} className="mb-2 text-foreground">
-                                                        {parts.map((part, partIndex) =>
-                                                          part.startsWith("**") && part.endsWith("**") ? (
-                                                            <strong key={partIndex}>{part.slice(2, -2)}</strong>
-                                                          ) : (
-                                                            part
-                                                          ),
-                                                        )}
+                                                        {line}
                                                       </p>
                                                     )
-                                                  }
-                                                  if (/^\d+\.\s/.test(line))
-                                                    return (
-                                                      <div key={index} className="ml-4 mb-1 text-foreground">
-                                                        {line}
-                                                      </div>
-                                                    )
-                                                  if (line.startsWith("   - "))
-                                                    return (
-                                                      <div key={index} className="ml-8 mb-1 text-foreground">
-                                                        • {line.substring(5)}
-                                                      </div>
-                                                    )
-                                                  if (line.startsWith("- "))
-                                                    return (
-                                                      <div key={index} className="ml-4 mb-1 text-foreground">
-                                                        • {line.substring(2)}
-                                                      </div>
-                                                    )
-                                                  if (line.trim() === "") return <br key={index} />
-                                                  return (
-                                                    <p key={index} className="mb-2 text-foreground">
-                                                      {line}
-                                                    </p>
-                                                  )
-                                                })}
+                                                  })}
+                                                </div>
                                               </div>
+                                            )}
+                                          </Card>
+                                        )}
+                                        <p className="text-xs opacity-70 mt-2">
+                                          {new Date(message.timestamp).toLocaleTimeString()}
+                                        </p>
+                                      </div>
+                                    )
+                                  }
+
+                                  const content =
+                                    typeof message.content === "object"
+                                      ? message.content.conceptual?.content ||
+                                        message.content.accional?.content ||
+                                        JSON.stringify(message.content)
+                                      : message.content
+
+                                  return (
+                                    <div className="prose prose-sm max-w-none dark:prose-invert">
+                                      {content.split("\n").map((line, index) => {
+                                        if (line.startsWith("# ")) {
+                                          return (
+                                            <h1 key={index} className="text-lg font-bold mt-4 mb-2">
+                                              {line.substring(2)}
+                                            </h1>
+                                          )
+                                        }
+                                        if (line.startsWith("## ")) {
+                                          return (
+                                            <h2 key={index} className="text-base font-semibold mt-3 mb-2">
+                                              {line.substring(3)}
+                                            </h2>
+                                          )
+                                        }
+                                        if (line.startsWith("### ")) {
+                                          return (
+                                            <h3 key={index} className="text-sm font-semibold mt-2 mb-1">
+                                              {line.substring(4)}
+                                            </h3>
+                                          )
+                                        }
+                                        if (line === "---") {
+                                          return <hr key={index} className="my-4 border-border" />
+                                        }
+                                        if (line.includes("**")) {
+                                          const parts = line.split(/(\*\*.*?\*\*)/g)
+                                          return (
+                                            <p key={index} className="mb-2">
+                                              {parts.map((part, partIndex) =>
+                                                part.startsWith("**") && part.endsWith("**") ? (
+                                                  <strong key={partIndex}>{part.slice(2, -2)}</strong>
+                                                ) : (
+                                                  part
+                                                ),
+                                              )}
+                                            </p>
+                                          )
+                                        }
+                                        if (/^\d+\.\s/.test(line)) {
+                                          return (
+                                            <div key={index} className="ml-4 mb-1">
+                                              {line}
                                             </div>
-                                          )}
-                                        </Card>
-                                      )}
-                                      <p className="text-xs opacity-70 mt-2">
-                                        {new Date(message.timestamp).toLocaleTimeString()}
-                                      </p>
-                                    </div>
-                                  )
-                                }
-
-                                const content =
-                                  typeof message.content === "object"
-                                    ? message.content.conceptual?.content ||
-                                      message.content.accional?.content ||
-                                      JSON.stringify(message.content)
-                                    : message.content
-
-                                return (
-                                  <div className="prose prose-sm max-w-none dark:prose-invert">
-                                    {content.split("\n").map((line, index) => {
-                                      if (line.startsWith("# ")) {
-                                        return (
-                                          <h1 key={index} className="text-lg font-bold mt-4 mb-2">
-                                            {line.substring(2)}
-                                          </h1>
-                                        )
-                                      }
-                                      if (line.startsWith("## ")) {
-                                        return (
-                                          <h2 key={index} className="text-base font-semibold mt-3 mb-2">
-                                            {line.substring(3)}
-                                          </h2>
-                                        )
-                                      }
-                                      if (line.startsWith("### ")) {
-                                        return (
-                                          <h3 key={index} className="text-sm font-semibold mt-2 mb-1">
-                                            {line.substring(4)}
-                                          </h3>
-                                        )
-                                      }
-                                      if (line === "---") {
-                                        return <hr key={index} className="my-4 border-border" />
-                                      }
-                                      if (line.includes("**")) {
-                                        const parts = line.split(/(\*\*.*?\*\*)/g)
+                                          )
+                                        }
+                                        if (line.startsWith("   - ")) {
+                                          return (
+                                            <div key={index} className="ml-8 mb-1">
+                                              • {line.substring(5)}
+                                            </div>
+                                          )
+                                        }
+                                        if (line.startsWith("- ")) {
+                                          return (
+                                            <div key={index} className="ml-4 mb-1">
+                                              • {line.substring(2)}
+                                            </div>
+                                          )
+                                        }
+                                        if (line.trim() === "") {
+                                          return <br key={index} />
+                                        }
                                         return (
                                           <p key={index} className="mb-2">
-                                            {parts.map((part, partIndex) =>
-                                              part.startsWith("**") && part.endsWith("**") ? (
-                                                <strong key={partIndex}>{part.slice(2, -2)}</strong>
-                                              ) : (
-                                                part
-                                              ),
-                                            )}
+                                            {line}
                                           </p>
                                         )
-                                      }
-                                      if (/^\d+\.\s/.test(line)) {
-                                        return (
-                                          <div key={index} className="ml-4 mb-1">
-                                            {line}
-                                          </div>
-                                        )
-                                      }
-                                      if (line.startsWith("   - ")) {
-                                        return (
-                                          <div key={index} className="ml-8 mb-1">
-                                            • {line.substring(5)}
-                                          </div>
-                                        )
-                                      }
-                                      if (line.startsWith("- ")) {
-                                        return (
-                                          <div key={index} className="ml-4 mb-1">
-                                            • {line.substring(2)}
-                                          </div>
-                                        )
-                                      }
-                                      if (line.trim() === "") {
-                                        return <br key={index} />
-                                      }
-                                      return (
-                                        <p key={index} className="mb-2">
-                                          {line}
-                                        </p>
-                                      )
-                                    })}
-                                  </div>
-                                )
-                              })()
-                            : message.content}
+                                      })}
+                                    </div>
+                                  )
+                                })()}
+                              </div>
+                              {!(
+                                typeof message.content === "object" &&
+                                (message.content.conceptual || message.content.accional)
+                              )}
+                              <div className="flex items-center space-x-2 mt-3 pt-2  border-gray-200">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(message.content)
+                                  }}
+                                  className="h-6 px-2 text-xs hover:bg-accent/50"
+                                >
+                                  <img src="icons/copiar.svg" alt="" className="h-4 w-4"/>
+                                </Button>
+                                <Button size="sm" variant="ghost" className="h-6 px-2 text-xs hover:bg-accent/50">
+                                  <img src="icons/descarga.svg" alt="" className="h-4 w-4"/>
+                                </Button>
+                              </div>
+                            </>
+                          )}
                         </div>
-                        {!(
-                          typeof message.content === "object" &&
-                          (message.content.conceptual || message.content.accional)
-                        ) && (
-                          <p className="text-xs opacity-70 mt-2">{new Date(message.timestamp).toLocaleTimeString()}</p>
-                        )}
-                        {message.role === "user" && !message.id.startsWith("temp-") && (
-                          <div className="flex items-center space-x-2 mt-2 pt-2 border-t border-primary-foreground/20">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleStartEdit(message.id, message.content)}
-                              className="h-6 px-2 text-xs hover:bg-primary-foreground/10"
-                            >
-                              <Edit className="h-3 w-3 mr-1" />
-                              Editar
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => handleDeleteMessage(message.id)}
-                              className="h-6 px-2 text-xs hover:bg-destructive/10 hover:text-destructive"
-                            >
-                              <Trash2 className="h-3 w-3 mr-1" />
-                              Eliminar
-                            </Button>
-                          </div>
-                        )}
-                      </>
+                      </div>
+                    )}
+                    {message.role === "user" && !message.id.startsWith("temp-") && (
+                      <div className="flex items-center space-x-2 mt-2 pt-2 border-t border-[#EBEEFF]/50">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleStartEdit(message.id, message.content)}
+                          className="h-6 px-2 text-xs hover:bg-[#EBEEFF]/50"
+                        >
+                          <Edit className="h-3 w-3 mr-1" />
+                          Editar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDeleteMessage(message.id)}
+                          className="h-6 px-2 text-xs hover:bg-destructive/10 hover:text-destructive"
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" />
+                          Eliminar
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -1310,7 +1312,7 @@ export function ChatInterface({
 
               {isLoading && (
                 <div className="flex justify-start">
-                  <div className="max-w-[80] rounded-lg px-4 py-3 mr-12">
+                  <div className="max-w-[80%] rounded-lg px-4 py-3 mr-12">
                     <div className="flex items-center space-x-2">
                       <Loader2 className="h-4 w-4 animate-spin" />
                     </div>
@@ -1323,19 +1325,18 @@ export function ChatInterface({
           )}
         </ScrollArea>
       )}
-
-      {/* Input Area */}
+      {/* Input */}
       {conversationId ? (
-        <div className="border-t border-border p-6 bg-white">
-          <div className="max-w-4xl mx-auto">
-            <div className="flex items-center space-x-2 mb-4">
+        <div className="py-6 bg-white">
+          <div className="max-w-4xl mx-auto px-4">
+            <div className="flex items-center space-x-2 mb-8">
               <Switch id="require-analysis" checked={requireAnalysis} onCheckedChange={setRequireAnalysis} />
               <Label htmlFor="require-analysis" className="text-sm text-muted-foreground cursor-pointer">
                 Generar análisis conceptual y plan de acción estructurado
               </Label>
             </div>
 
-            <div className="flex items-center space-x-3 bg-white border-2 border-border rounded-full px-6 py-3 shadow-sm hover:border-primary/50 transition-colors">
+            <div className="flex items-center space-x-3 bg-white border border-gray-300 rounded-2xl px-6 py-3 hover:border-primary/50 transition-colors">
               <Plus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
               <Input
                 value={inputValue}
@@ -1367,21 +1368,20 @@ export function ChatInterface({
                   <line x1="12" x2="12" y1="19" y2="22" />
                 </svg>
               </button>
-              <Button
+              <button
                 onClick={sendMessage}
                 disabled={isLoading || !inputValue.trim()}
-                size="icon"
-                className="rounded-full h-10 w-10 bg-primary hover:bg-primary/90 flex-shrink-0"
+                className="rounded-full h-10 w-10 flex items-center justify-center flex-shrink-0 disabled:opacity-50"
               >
-                <Send className="h-4 w-4" />
-              </Button>
+                <img src="/icons/circula_arrow.svg" alt="Enviar" className="h-10 w-10" />
+              </button>
             </div>
           </div>
         </div>
       ) : (
-        <div className="border-t border-border p-6 bg-white">
-          <div className="max-w-4xl mx-auto">
-            <div className="flex items-center space-x-3 bg-white border-2 border-border rounded-full px-6 py-3 shadow-sm hover:border-primary/50 transition-colors">
+        <div className="border-border py-4 bg-white">
+          <div className="max-w-4xl mx-auto px-8">
+            <div className="flex items-center space-x-3 bg-white border border-gray-300 rounded-2xl px-6 py-3 hover:border-primary/50 transition-colors">
               <Plus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
               <Input
                 value={inputValue}
@@ -1415,14 +1415,13 @@ export function ChatInterface({
                   <line x1="12" x2="12" y1="19" y2="22" />
                 </svg>
               </button>
-              <Button
+              <button
                 onClick={createNewConversation}
                 disabled={isLoading || !inputValue.trim()}
-                size="icon"
-                className="rounded-full h-10 w-10 bg-primary hover:bg-primary/90 flex-shrink-0"
+                className="rounded-full h-10 w-10 flex items-center justify-center flex-shrink-0 disabled:opacity-50"
               >
-                <Send className="h-4 w-4" />
-              </Button>
+                <img src="/icons/circula_arrow.svg" alt="Enviar" className="h-10 w-10" />
+              </button>
             </div>
           </div>
         </div>

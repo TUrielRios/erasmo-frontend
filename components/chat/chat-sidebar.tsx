@@ -6,22 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
-import { Badge } from "@/components/ui/badge"
-import {
-  Plus,
-  Search,
-  MessageSquare,
-  MoreHorizontal,
-  Trash2,
-  Edit,
-  Folder,
-  FolderPlus,
-  Share2,
-  ChevronDown,
-  ChevronRight,
-  PenSquare,
-  User,
-} from "lucide-react"
+import { Search, MoreHorizontal, Trash2, Edit, ChevronDown, ChevronRight, Plus } from "lucide-react"
 import { getUser, logout } from "@/lib/auth"
 import { projectService } from "@/lib/projects"
 import { chatService, type Conversation as APIConversation } from "@/lib/chat"
@@ -167,7 +152,6 @@ export function ChatSidebar({
         setIsLoading(false)
       }
     }
-
     fetchConversations()
   }, [isClient, user, selectedProjectId, router])
 
@@ -407,24 +391,23 @@ export function ChatSidebar({
   })
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full relative" style={{ backgroundColor: '#F5F5F5' }}>
-      {/* Botón de colapsar/expandir - Solo en Desktop */}
+    <div className="flex flex-col h-full relative" style={{ backgroundColor: "#F5F5F5" }}>
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 z-30 w-6 h-12 bg-white border border-gray-200 rounded-r-lg items-center justify-center hover:bg-gray-50 transition-colors shadow-sm"
+        className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 z-30 w-8 h-12 bg-blue-600 rounded-r-lg items-center justify-center hover:bg-blue-700 transition-colors shadow-md"
       >
         {isCollapsed ? (
-          <ChevronRight className="h-4 w-4 text-gray-600" />
+          <ChevronRight className="h-5 w-5 text-white" />
         ) : (
-          <ChevronRight className="h-4 w-4 text-gray-600 rotate-180" />
+          <ChevronRight className="h-5 w-5 text-white rotate-180" />
         )}
       </button>
 
       {/* Header con Logo */}
       <div className="px-4 py-6 border-b border-gray-200">
         <div className="flex items-center gap-2 mb-6">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-            <span className="text-white text-sm font-bold">C</span>
+          <div className="w-8 h-8 bg-grey rounded-lg flex items-center justify-center flex-shrink-0">
+            <img src="icons/logo_clara_azul.svg" alt="logo clara azul" />
           </div>
           <div>
             <h2 className="font-semibold text-foreground text-sm">CLARA</h2>
@@ -439,30 +422,34 @@ export function ChatSidebar({
             variant="ghost"
             className="w-full justify-start text-sm font-normal h-9 hover:bg-gray-50"
           >
-            <PenSquare className="h-4 w-4 mr-3 text-gray-600" />
+            <img src="/icons/lapiz_cuadro.svg" alt="Nuevo chat" className="h-4 w-4 mr-3" />
             <span className="text-gray-700">Nuevo chat</span>
           </Button>
           <Button
             variant="ghost"
             className="w-full justify-start text-sm font-normal h-9 hover:bg-gray-50"
-            onClick={() => setSearchTerm("")}
+            onClick={() => {
+              setSearchTerm(searchTerm.trim() === "" ? " " : "")
+            }}
           >
-            <Search className="h-4 w-4 mr-3 text-gray-600" />
+            <img src="/icons/lupita.svg" alt="Buscar chat" className="h-4 w-4 mr-3" />
             <span className="text-gray-700">Buscar chat</span>
           </Button>
         </div>
       </div>
 
       {/* Search Bar */}
-      {searchTerm !== "" && (
+      {searchTerm.trim() !== "" && (
         <div className="px-4 pt-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <Input
+            <input
+              type="text"
               placeholder="Buscar chats..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 bg-gray-50 border-gray-200 h-9 text-sm"
+              autoFocus
+              className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-md h-9 text-sm focus:outline-none focus:border-blue-400"
             />
           </div>
         </div>
@@ -483,100 +470,94 @@ export function ChatSidebar({
               className="flex items-center justify-between w-full py-2 hover:bg-gray-100 rounded-md px-2 -mx-2"
             >
               <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-blue-600 uppercase tracking-wider">Proyectos</span>
+                <span className="text-sm font-bold text-blue-600">Proyectos</span>
               </div>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    createNewProject()
-                  }}
-                  className="h-5 w-5 p-0 hover:bg-gray-100"
-                >
-                  <Plus className="h-3.5 w-3.5 text-gray-500" />
-                </Button>
-                {projectsExpanded ? (
-                  <ChevronDown className="h-3.5 w-3.5 text-gray-500" />
-                ) : (
-                  <ChevronRight className="h-3.5 w-3.5 text-gray-500" />
-                )}
-              </div>
+              {projectsExpanded ? (
+                <ChevronDown className="h-3.5 w-3.5 text-gray-500" />
+              ) : (
+                <ChevronRight className="h-3.5 w-3.5 text-gray-500" />
+              )}
             </button>
 
             {projectsExpanded && (
               <div className="mt-2 space-y-1">
                 {isLoadingProjects ? (
                   <div className="text-center text-muted-foreground py-4 text-xs">Cargando proyectos...</div>
-                ) : projects.length === 0 ? (
-                  <div className="text-center text-muted-foreground py-4 text-xs">No hay proyectos</div>
                 ) : (
                   <>
-                    <button
-                      onClick={() => setSelectedProjectId(null)}
-                      className={cn(
-                        "flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-sm transition-colors",
-                        selectedProjectId === null
-                          ? "bg-white text-gray-900"
-                          : "text-gray-700 hover:bg-white"
-                      )}
-                    >
-                      <Folder className="h-4 w-4 text-gray-400" />
-                      <span>Todos los chats</span>
-                    </button>
-
-                    {projects.map((project) => (
-                      <div
-                        key={project.id}
-                        className={cn(
-                          "group flex items-center justify-between px-2 py-1.5 rounded-md transition-colors",
-                          selectedProjectId === project.id
-                            ? "bg-white"
-                            : "hover:bg-white"
-                        )}
-                      >
+                    {projects.length === 0 ? (
+                      <div className="text-center text-muted-foreground py-4 text-xs">
                         <button
-                          onClick={() => setSelectedProjectId(project.id)}
-                          className="flex items-center gap-2 flex-1 min-w-0 text-left"
+                          onClick={() => createNewProject()}
+                          className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-sm transition-colors text-gray-700 hover:bg-white"
                         >
-                          <Folder className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                          <span className="text-sm text-gray-700 truncate">{project.name}</span>
+                          <img src="icons/agregar_carpeta.svg" alt="" />
+                          <span>Nuevo proyecto</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => createNewProject()}
+                          className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-sm transition-colors text-gray-700 hover:bg-white"
+                        >
+                          <img src="icons/agregar_carpeta.svg" alt="agregar carpeta" className=" h-4 w-4" />
+                          <span>Nuevo proyecto</span>
                         </button>
 
-                        <div className="relative opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0 hover:bg-gray-200"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setOpenMenuId(openMenuId === `project-${project.id}` ? null : `project-${project.id}`)
-                            }}
+                        {projects.map((project) => (
+                          <div
+                            key={project.id}
+                            className={cn(
+                              "group flex items-center justify-between px-2 py-1.5 rounded-md transition-colors",
+                              selectedProjectId === project.id
+                                ? "bg-white text-gray-900"
+                                : "text-gray-700 hover:bg-white",
+                            )}
                           >
-                            <MoreHorizontal className="h-3.5 w-3.5 text-gray-600" />
-                          </Button>
+                            <button
+                              onClick={() => setSelectedProjectId(project.id)}
+                              className="flex items-center gap-2 flex-1 min-w-0 text-left"
+                            >
+                              <img src="/icons/carpeta.svg" alt="icono carpeta" className="h-4 w-4 flex-shrink-0" />
+                              <span className="text-sm text-gray-700 truncate">{project.name}</span>
+                            </button>
 
-                          {openMenuId === `project-${project.id}` && (
-                            <>
-                              <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)} />
-                              <div className="absolute right-0 top-8 z-20 w-48 rounded-lg border border-gray-200 bg-white p-1 shadow-lg">
-                                <button
-                                  className="flex w-full items-center rounded-md px-3 py-2 text-sm text-red-600 hover:bg-red-50"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    deleteProject(project.id)
-                                  }}
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Eliminar
-                                </button>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                            <div className="relative opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0 hover:bg-gray-200"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setOpenMenuId(openMenuId === `project-${project.id}` ? null : `project-${project.id}`)
+                                }}
+                              >
+                                <MoreHorizontal className="h-3.5 w-3.5 text-gray-600" />
+                              </Button>
+
+                              {openMenuId === `project-${project.id}` && (
+                                <>
+                                  <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)} />
+                                  <div className="absolute right-0 top-8 z-20 w-48 rounded-lg border border-gray-200 bg-white p-1 shadow-lg">
+                                    <button
+                                      className="flex w-full items-center rounded-md px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        deleteProject(project.id)
+                                      }}
+                                    >
+                                      <Trash2 className="h-4 w-4 mr-2" />
+                                      Eliminar
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </>
+                    )}
                   </>
                 )}
               </div>
@@ -589,7 +570,7 @@ export function ChatSidebar({
               onClick={() => setChatsExpanded(!chatsExpanded)}
               className="flex items-center justify-between w-full py-2 hover:bg-gray-100 rounded-md px-2 -mx-2"
             >
-              <span className="text-xs font-semibold text-blue-600 uppercase tracking-wider">
+              <span className="text-sm font-bold text-blue-600 ">
                 {selectedProjectId ? "Chats del proyecto" : "Chats"}
               </span>
               {chatsExpanded ? (
@@ -613,9 +594,7 @@ export function ChatSidebar({
                       key={conversation.id}
                       className={cn(
                         "group flex items-start justify-between px-2 py-2 rounded-md transition-colors cursor-pointer",
-                        activeConversationId === conversation.session_id
-                          ? "bg-blue-100 text-blue-900"
-                          : "hover:bg-white"
+                        activeConversationId === conversation.session_id ? "bg-[#EBEEFF]" : "hover:bg-[#EBEEFF]",
                       )}
                       onClick={() => {
                         if (editingConversationId === conversation.id) return
@@ -648,9 +627,7 @@ export function ChatSidebar({
                             <h3
                               className={cn(
                                 "text-sm font-medium truncate mb-0.5",
-                                activeConversationId === conversation.session_id
-                                  ? "text-blue-900"
-                                  : "text-gray-900"
+                                activeConversationId === conversation.session_id ? "text-blue-700" : "text-gray-900",
                               )}
                             >
                               {conversation.title}
@@ -659,9 +636,7 @@ export function ChatSidebar({
                               <span
                                 className={cn(
                                   "text-xs",
-                                  activeConversationId === conversation.session_id
-                                    ? "text-blue-700"
-                                    : "text-gray-500"
+                                  activeConversationId === conversation.session_id ? "text-blue-600" : "text-gray-500",
                                 )}
                               >
                                 {conversation.messageCount} mensajes
@@ -679,14 +654,12 @@ export function ChatSidebar({
                             className={cn(
                               "h-6 w-6 p-0",
                               activeConversationId === conversation.session_id
-                                ? "hover:bg-blue-200 text-blue-900"
-                                : "hover:bg-gray-200 text-gray-600"
+                                ? "hover:bg-blue-200 text-blue-700"
+                                : "hover:bg-blue-200 text-gray-600",
                             )}
                             onClick={(e) => {
                               e.stopPropagation()
-                              setOpenMenuId(
-                                openMenuId === `conv-${conversation.id}` ? null : `conv-${conversation.id}`,
-                              )
+                              setOpenMenuId(openMenuId === `conv-${conversation.id}` ? null : `conv-${conversation.id}`)
                             }}
                           >
                             <MoreHorizontal className="h-3.5 w-3.5" />
@@ -704,7 +677,7 @@ export function ChatSidebar({
                                     setOpenMenuId(null)
                                   }}
                                 >
-                                  <Share2 className="h-4 w-4 mr-2" />
+                                  <img src="/icons/descarga.svg" alt="icono compartir" className="h-4 w-4 mr-2" />
                                   Compartir
                                 </button>
                                 <button
@@ -745,15 +718,14 @@ export function ChatSidebar({
       <div className="px-4 py-3 border-t border-gray-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
-              <User className="h-4 w-4 text-white" />
+            <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center flex-shrink-0">
+              <img src="/icons/user_circulo.svg" alt="user icon" className="h-6 w-6" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">
-                {user?.full_name || user?.username}
-              </p>
+              <p className="text-xs font-medium text-gray-900 truncate">{user?.full_name || user?.username}</p>
               <p className="text-xs text-gray-500 truncate">{user?.company?.name}</p>
             </div>
+            <img src="/icons/logout.svg" alt="log out" className="h-5 w-5" />
           </div>
         </div>
       </div>
@@ -770,24 +742,25 @@ export function ChatSidebar({
       </Sheet>
 
       {/* Desktop Sidebar */}
-      <div className={cn(
-        "hidden md:flex md:flex-col border-r border-gray-100 transition-all duration-300 relative",
-        isCollapsed ? "md:w-16" : "md:w-64"
-      )}>
+      <div
+        className={cn(
+          "hidden md:flex md:flex-col border-r border-gray-100 transition-all duration-300 relative",
+          isCollapsed ? "md:w-16" : "md:w-64",
+        )}
+      >
         {isCollapsed ? (
-          <div className="flex flex-col h-full relative" style={{ backgroundColor: '#F5F5F5' }}>
-            {/* Botón de expandir cuando está colapsado */}
+          <div className="flex flex-col h-full relative" style={{ backgroundColor: "#F5F5F5" }}>
             <button
               onClick={() => setIsCollapsed(false)}
-              className="absolute -right-3 top-1/2 -translate-y-1/2 z-30 w-6 h-12 bg-white border border-gray-200 rounded-r-lg flex items-center justify-center hover:bg-gray-50 transition-colors shadow-sm"
+              className="absolute -right-3 top-1/2 -translate-y-1/2 z-30 w-8 h-12 bg-blue-600 rounded-r-lg flex items-center justify-center hover:bg-blue-700 transition-colors shadow-md"
             >
-              <ChevronRight className="h-4 w-4 text-gray-600" />
+              <ChevronRight className="h-5 w-5 text-white" />
             </button>
 
             {/* Logo colapsado */}
             <div className="px-4 py-6 border-b border-gray-200 flex justify-center">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <span className="text-white text-sm font-bold">C</span>
+              <div className="w-8 h-8 bg-grey rounded-lg flex items-center justify-center">
+                <img src="icons/logo_clara_azul.svg" alt="logo clara azul" />
               </div>
             </div>
 
@@ -800,14 +773,16 @@ export function ChatSidebar({
                 className="w-10 h-10 p-0 hover:bg-gray-50"
                 title="Nuevo chat"
               >
-                <PenSquare className="h-5 w-5 text-gray-600" />
+                <img src="/icons/lapiz_cuadro.svg" alt="" />
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
                 className="w-10 h-10 p-0 hover:bg-gray-50"
                 title="Buscar chat"
-                onClick={() => setSearchTerm("")}
+                onClick={() => {
+                  setSearchTerm(searchTerm.trim() === "" ? " " : "")
+                }}
               >
                 <Search className="h-5 w-5 text-gray-600" />
               </Button>
@@ -815,8 +790,8 @@ export function ChatSidebar({
 
             {/* User icon en el footer */}
             <div className="mt-auto px-4 py-3 border-t border-gray-200 flex justify-center">
-              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                <User className="h-4 w-4 text-white" />
+              <div>
+                <img src="icons/user_circulo.svg" alt="logo usuario" />
               </div>
             </div>
           </div>

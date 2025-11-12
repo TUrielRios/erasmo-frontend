@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
-import { Search, Menu, Settings, AlertCircle, Loader2 } from "lucide-react"
+import { Search, Menu, AlertCircle, Loader2 } from "lucide-react"
 import { getUser } from "@/lib/auth"
 import { useAdminApi, type Company, type Document } from "@/hooks/use-admin-api"
 import { AdminSidebar } from "@/components/admin/admin-sidebar"
@@ -17,6 +17,7 @@ import { CompanyDetails } from "@/components/admin/company-details"
 import { DocumentsList } from "@/components/admin/documents-list"
 import { UploadDialog } from "@/components/admin/upload-dialog"
 import { EditDocumentDialog } from "@/components/admin/edit-document-dialog"
+import { CreateCompanyDialog } from "@/components/admin/create-company-dialog"
 
 const AdminDashboard = () => {
   // Estados principales
@@ -35,6 +36,7 @@ const AdminDashboard = () => {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
   const [editDocumentDialogOpen, setEditDocumentDialogOpen] = useState(false)
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
+  const [createCompanyDialogOpen, setCreateCompanyDialogOpen] = useState(false)
 
   // Estados de formularios
   const [uploadForm, setUploadForm] = useState({
@@ -49,6 +51,13 @@ const AdminDashboard = () => {
     priority: 1,
     category: "",
     is_active: true,
+  })
+
+  const [createCompanyForm, setCreateCompanyForm] = useState({
+    name: "",
+    industry: "",
+    sector: "",
+    description: "",
   })
 
   const user = getUser()
@@ -146,6 +155,33 @@ const AdminDashboard = () => {
     }
   }
 
+  const handleCreateCompany = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    const result = await api.createCompany({
+      name: createCompanyForm.name,
+      industry: createCompanyForm.industry,
+      sector: createCompanyForm.sector,
+      description: createCompanyForm.description,
+    })
+
+    if (result) {
+      console.log("[v0] Company created successfully:", result)
+      // Reset form and close dialog
+      setCreateCompanyForm({
+        name: "",
+        industry: "",
+        sector: "",
+        description: "",
+      })
+      setCreateCompanyDialogOpen(false)
+
+      // Reload companies list
+      const companiesData = await api.loadCompanies()
+      if (companiesData) setCompanies(companiesData)
+    }
+  }
+
   // Filtrar compañías
   const filteredCompanies = companies.filter(
     (company) =>
@@ -178,16 +214,14 @@ const AdminDashboard = () => {
                 <Menu className="h-5 w-5" />
               </Button>
               <div className="flex items-center space-x-2">
-                <Settings className="h-6 w-6 text-primary" />
                 <div>
-                  <h1 className="font-semibold text-foreground">
-                    {activeTab === "dashboard" ? "Dashboard" : "Gestión de Compañías"}
+                  <h1 className="font-bold text-2xl text-blue-600">
+                    {activeTab === "dashboard" ? "Dashboard" : "Gestión de subagentes"}
                   </h1>
-                  <p className="text-xs text-muted-foreground">Panel de Administración</p>
                 </div>
               </div>
             </div>
-            <Badge variant="secondary" className="text-xs">
+            <Badge variant="secondary" className="text-xs text-blue-600 bg-cyan-400">
               Admin
             </Badge>
           </div>
@@ -235,7 +269,7 @@ const AdminDashboard = () => {
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Buscar compañías..."
+                    placeholder="Buscar en subagentes"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-9"
@@ -253,6 +287,7 @@ const AdminDashboard = () => {
                     companies={filteredCompanies}
                     selectedCompany={selectedCompany}
                     onSelectCompany={setSelectedCompany}
+                    onAddCompany={() => setCreateCompanyDialogOpen(true)}
                   />
 
                   <div className="space-y-4">
@@ -283,6 +318,15 @@ const AdminDashboard = () => {
       </div>
 
       {/* Dialogs */}
+      <CreateCompanyDialog
+        open={createCompanyDialogOpen}
+        onOpenChange={setCreateCompanyDialogOpen}
+        form={createCompanyForm}
+        setForm={setCreateCompanyForm}
+        onSubmit={handleCreateCompany}
+        loading={api.loading}
+      />
+
       <UploadDialog
         open={uploadDialogOpen}
         onOpenChange={setUploadDialogOpen}

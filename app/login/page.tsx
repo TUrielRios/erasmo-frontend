@@ -7,8 +7,8 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Eye, EyeOff } from "lucide-react"
 import { authAPI } from "@/lib/api"
+
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -83,11 +83,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0A2FF1] flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-[#0A2FF1] flex flex-col items-center justify-center px-4">
+      <div className="w-full max-w-md flex flex-col">
         <div className="flex items-center justify-center mb-8 gap-2">
-          <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center">
-            <div className="w-3 h-3 rounded-full bg-[#0A2FF1]" />
+          <div className="w-10 h-10 flex items-center justify-center">
+            <img src="/icons/logo_clara.svg" alt="Erasmo Logo" className="w-8 h-8" />
           </div>
           <h1 className="text-3xl font-bold text-white">CLARA</h1>
         </div>
@@ -113,7 +113,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="h-12 rounded-xl border-[#0A2FF1] focus-visible:ring-[#0A2FF1] placeholder:text-gray-400"
+                className="h-12 rounded-xl border-[#0A2FF1] focus:outline-none focus-visible:ring-0 placeholder:text-gray-400"
               />
             </div>
 
@@ -129,14 +129,14 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="h-12 rounded-xl border-[#0A2FF1] focus-visible:ring-[#0A2FF1] placeholder:text-gray-400 pr-12"
+                  className="h-12 rounded-xl border-[#0A2FF1] focus:outline-none focus-visible:ring-0 placeholder:text-gray-400 pr-12"
                 />
                 <button
                   type="button"
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-[#0A2FF1] hover:text-[#0A2FF1]/80"
                   onClick={() => setShowPassword(!showPassword)}
                 >
-                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  <img src="/icons/ojo.svg" alt="Toggle Password Visibility" className="w-5 h-5" />
                 </button>
               </div>
             </div>
@@ -149,15 +149,15 @@ export default function LoginPage() {
               {isLoading ? "Iniciando sesión..." : "Iniciar sesión"}
             </Button>
           </form>
+        </div>
 
-          <div className="mt-6 flex items-center justify-center gap-8 text-sm">
-            <Link href="/register" className="text-[#0A2FF1] hover:underline">
-              Crear una cuenta
-            </Link>
-            <Link href="/forgot-password" className="text-[#0A2FF1] hover:underline">
-              He olvidado la contraseña
-            </Link>
-          </div>
+        <div className="mt-8 flex items-center justify-center gap-8 text-sm">
+          <Link href="/register" className="text-white hover:text-white/80">
+            Crear una cuenta
+          </Link>
+          <Link href="/forgot-password" className="text-white hover:text-white/80">
+            He olvidado la contraseña
+          </Link>
         </div>
       </div>
     </div>
