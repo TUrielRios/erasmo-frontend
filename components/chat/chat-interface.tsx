@@ -3,38 +3,16 @@
 import type React from "react"
 import { useEffect, useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
-import {
-  Menu,
-  Loader2,
-  ChevronDown,
-  ChevronUp,
-  Lightbulb,
-  Target,
-  Clock,
-  Folder,
-  Upload,
-  File,
-  Trash2,
-  CheckCircle,
-  AlertCircle,
-  Plus,
-  Edit,
-  X,
-  Check,
-} from "lucide-react"
-import Image from "next/image"
+import { Menu, Loader2, Upload, Folder } from "lucide-react"
 import { getUser } from "@/lib/auth"
 import { projectFileService } from "@/lib/project-files"
 import { chatService } from "@/lib/chat"
-import { cn } from "@/lib/utils"
 import { ShareConversationDialog } from "./share-conversation-dialog"
+import { MessageItem } from "./chat-interface-components/MessageItem"
+import { FileManager } from "./chat-interface-components/FileManager"
+import { WelcomeScreen } from "./chat-interface-components/WelcomeScreen"
+import { ChatInput } from "./chat-interface-components/ChatInput"
 
 interface Message {
   id: string
@@ -93,41 +71,14 @@ export function ChatInterface({
   const [editingContent, setEditingContent] = useState("")
   const [showShareDialog, setShowShareDialog] = useState(false)
   const [conversationTitle, setConversationTitle] = useState("Nueva conversación")
+  const [currentAssistantMessageId, setCurrentAssistantMessageId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const currentUser = getUser()
-    console.log("[CHAT INTERFACE] User loaded:", currentUser)
     setUser(currentUser)
   }, [])
-
-  useEffect(() => {
-    console.log("[v0] conversationId changed:", conversationId)
-    console.log("[v0] conversationId type:", typeof conversationId)
-    console.log("[v0] conversationId isNaN:", isNaN(Number(conversationId)))
-  }, [conversationId])
-
-  const categories = [
-    {
-      value: "instructions" as const,
-      label: "Instrucciones",
-      description: "Guías y reglas específicas",
-      icon: "📋",
-    },
-    {
-      value: "knowledge_base" as const,
-      label: "Conocimiento",
-      description: "Información general",
-      icon: "📚",
-    },
-    {
-      value: "reference" as const,
-      label: "Referencia",
-      description: "Documentos de consulta",
-      icon: "🔖",
-    },
-  ]
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -139,14 +90,6 @@ export function ChatInterface({
       ...prev,
       [key]: !prev[key],
     }))
-  }
-
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return "0 Bytes"
-    const k = 1024
-    const sizes = ["Bytes", "KB", "MB", "GB"]
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i]
   }
 
   useEffect(() => {
@@ -343,11 +286,21 @@ export function ChatInterface({
               try {
                 const parsed = JSON.parse(data)
 
+                if (parsed.type === "assistant_message_id" && !currentAssistantMessageId) {
+                  setCurrentAssistantMessageId(parsed.message_id.toString())
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === assistantMessage.id ? { ...msg, id: currentAssistantMessageId } : msg,
+                    ),
+                  )
+                }
+
+                const targetMessageId = currentAssistantMessageId || assistantMessage.id
                 if (parsed.content) {
                   accumulatedContent += parsed.content
 
                   setMessages((prev) =>
-                    prev.map((msg) => (msg.id === assistantMessageId ? { ...msg, content: accumulatedContent } : msg)),
+                    prev.map((msg) => (msg.id === targetMessageId ? { ...msg, content: accumulatedContent } : msg)),
                   )
                 }
               } catch (e) {
@@ -361,7 +314,9 @@ export function ChatInterface({
       if (!accumulatedContent) {
         setMessages((prev) =>
           prev.map((msg) =>
-            msg.id === assistantMessageId ? { ...msg, content: "Lo siento, no pude generar una respuesta." } : msg,
+            msg.id === currentAssistantMessageId
+              ? { ...msg, content: "Lo siento, no pude generar una respuesta." }
+              : msg,
           ),
         )
       }
@@ -370,6 +325,7 @@ export function ChatInterface({
       alert("Error al actualizar el mensaje. Intenta de nuevo.")
     } finally {
       setIsLoading(false)
+      setCurrentAssistantMessageId(null)
     }
   }
 
@@ -490,6 +446,7 @@ export function ChatInterface({
     }
 
     setMessages((prev) => [...prev, userMessage])
+    const messageContent = inputValue.trim()
     setInputValue("")
     setIsLoading(true)
 
@@ -501,6 +458,7 @@ export function ChatInterface({
       timestamp: new Date().toISOString(),
     }
     setMessages((prev) => [...prev, assistantMessage])
+    setCurrentAssistantMessageId(tempAssistantMessageId)
 
     try {
       const requestBody = {
@@ -530,6 +488,7 @@ export function ChatInterface({
       const reader = response.body?.getReader()
       const decoder = new TextDecoder()
       let accumulatedContent = ""
+      let realAssistantMessageId: string | null = null
 
       if (reader) {
         while (true) {
@@ -551,31 +510,21 @@ export function ChatInterface({
               try {
                 const parsed = JSON.parse(data)
 
-                if (parsed.type === "user_message_id") {
+                if (parsed.type === "assistant_message_id" && !realAssistantMessageId) {
+                  realAssistantMessageId = parsed.message_id.toString()
                   setMessages((prev) =>
                     prev.map((msg) =>
-                      msg.id === tempUserMessageId ? { ...msg, id: parsed.message_id.toString() } : msg,
+                      msg.id === tempAssistantMessageId ? { ...msg, id: realAssistantMessageId } : msg,
                     ),
                   )
                 }
 
-                if (parsed.type === "assistant_message_id") {
-                  setMessages((prev) =>
-                    prev.map((msg) =>
-                      msg.id === tempAssistantMessageId ? { ...msg, id: parsed.message_id.toString() } : msg,
-                    ),
-                  )
-                }
-
-                if (parsed.content || parsed.type === "content") {
-                  accumulatedContent += parsed.content || ""
+                const targetMessageId = realAssistantMessageId || tempAssistantMessageId
+                if (parsed.content) {
+                  accumulatedContent += parsed.content
 
                   setMessages((prev) =>
-                    prev.map((msg) =>
-                      msg.id === tempAssistantMessageId || msg.id.startsWith("temp-assistant")
-                        ? { ...msg, content: accumulatedContent }
-                        : msg,
-                    ),
+                    prev.map((msg) => (msg.id === targetMessageId ? { ...msg, content: accumulatedContent } : msg)),
                   )
                 }
               } catch (e) {
@@ -587,13 +536,33 @@ export function ChatInterface({
       }
 
       if (!accumulatedContent) {
+        const targetMessageId = realAssistantMessageId || tempAssistantMessageId
         setMessages((prev) =>
           prev.map((msg) =>
-            msg.id === tempAssistantMessageId || msg.id.startsWith("temp-assistant")
-              ? { ...msg, content: "Lo siento, no pude generar una respuesta." }
-              : msg,
+            msg.id === targetMessageId ? { ...msg, content: "Lo siento, no pude generar una respuesta." } : msg,
           ),
         )
+      }
+
+      if (messages.length === 0) {
+        try {
+          const words = messageContent.split(" ").slice(0, 6).join(" ")
+          const newTitle = words.length < messageContent.length ? words + "..." : words
+
+          await fetch(
+            `${API_URL}/api/v1/chat/conversations/${conversationId}/title?user_id=${user.id}&new_title=${encodeURIComponent(newTitle)}`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+              },
+            },
+          )
+
+          setConversationTitle(newTitle)
+        } catch (error) {
+          console.error("[CHAT] Error updating conversation title:", error)
+        }
       }
     } catch (error) {
       console.error("[CHAT] Error sending message:", error)
@@ -610,22 +579,16 @@ export function ChatInterface({
         }
       }
 
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === tempAssistantMessageId || msg.id.startsWith("temp-assistant")
-            ? { ...msg, content: errorContent }
-            : msg,
-        ),
-      )
+      const targetMessageId = tempAssistantMessageId
+      setMessages((prev) => prev.map((msg) => (msg.id === targetMessageId ? { ...msg, content: errorContent } : msg)))
     } finally {
       setIsLoading(false)
+      setCurrentAssistantMessageId(null)
     }
   }
 
   const createNewConversation = async () => {
     try {
-      console.log("[CREATE CONVERSATION] User:", user)
-
       if (!user?.id) {
         console.error("[CREATE CONVERSATION] No user ID available")
         alert("Error: No se pudo obtener la información del usuario")
@@ -637,11 +600,6 @@ export function ChatInterface({
         project_id: projectId || null,
       }
 
-      console.log("[CREATE CONVERSATION] Request:", {
-        url: `${API_URL}/api/v1/chat/conversations?user_id=${user.id}`,
-        body: requestBody,
-      })
-
       const response = await fetch(`${API_URL}/api/v1/chat/conversations?user_id=${user.id}`, {
         method: "POST",
         headers: {
@@ -650,16 +608,11 @@ export function ChatInterface({
         body: JSON.stringify(requestBody),
       })
 
-      console.log("[CREATE CONVERSATION] Response status:", response.status)
-
       if (!response.ok) {
-        const errorText = await response.text()
-        console.error("[CREATE CONVERSATION] Error response:", errorText)
         throw new Error("Error al crear conversación")
       }
 
       const newConversation = await response.json()
-      console.log("[CREATE CONVERSATION] New conversation:", newConversation)
 
       if (onConversationCreated) {
         onConversationCreated(newConversation.session_id)
@@ -669,28 +622,6 @@ export function ChatInterface({
       alert("Error al crear conversación. Intenta de nuevo.")
     }
   }
-
-  const WelcomeScreen = () => (
-    <div className="flex-1 flex flex-col items-center justify-center bg-white">
-      <div className="text-center max-w-2xl w-full px-8">
-        <div className="mb-12">
-          <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center mx-auto mb-6">
-            <Image src="/icons/logo_clara_azul.svg" alt="Clara Logo" width={60} height={60} />
-          </div>
-          <h2 className="text-3xl font-bold text-primary mb-3">¡Hola, {user?.full_name || user?.username}!</h2>
-          <p className="text-xs text-primary text-lg mb-2">
-            Soy CLARA, tu asistente de IA especializado en estrategia de marca <br /> y marketing
-          </p>
-          <p className="text-muted-foreground text-base">¿En qué puedo ayudarte hoy?</p>
-        </div>
-      </div>
-    </div>
-  )
-
-  const filesByCategory = categories.map((cat) => ({
-    ...cat,
-    files: projectFiles.filter((f) => f && typeof f === "object" && f.category === cat.value),
-  }))
 
   if (!user) {
     return (
@@ -731,13 +662,7 @@ export function ChatInterface({
               <Button
                 variant="default"
                 size="sm"
-                onClick={() => {
-                  console.log("[v0] Share button clicked")
-                  console.log("[v0] conversationId:", conversationId)
-                  console.log("[v0] conversationId Number:", Number(conversationId))
-                  console.log("[v0] isNaN check:", isNaN(Number(conversationId)))
-                  setShowShareDialog(true)
-                }}
+                onClick={() => setShowShareDialog(true)}
                 className="flex items-center space-x-2 bg-primary hover:bg-primary/90"
               >
                 <img src="/icons/descarga.svg" alt="compartir icono" className="h-4 w-4 brightness-0 invert" />
@@ -764,165 +689,25 @@ export function ChatInterface({
 
       {/* File Manager Panel */}
       {showFileManager && projectId && (
-        <div className="border-b border-border bg-muted/30">
-          <div className="p-4 max-w-4xl mx-auto">
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Categoría del archivo</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {categories.map((category) => (
-                    <button
-                      key={category.value}
-                      onClick={() => setSelectedCategory(category.value)}
-                      className={cn(
-                        "p-2 rounded-lg border-2 transition-all text-left",
-                        selectedCategory === category.value
-                          ? "border-primary bg-primary/10"
-                          : "border-border hover:border-primary/50",
-                      )}
-                    >
-                      <div className="flex items-center space-x-2 mb-1">
-                        <span className="text-lg">{category.icon}</span>
-                        <span className="font-medium text-xs">{category.label}</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground">{category.description}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div
-                className="p-6 border-2 border-dashed border-border rounded-lg text-center hover:border-primary/50 transition-colors cursor-pointer"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Upload className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm font-medium text-foreground mb-1">Haz clic para subir archivos</p>
-                <p className="text-xs text-muted-foreground">PDF, DOC, DOCX, TXT, MD (Max 10MB)</p>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  onChange={handleFileSelect}
-                  className="hidden"
-                  accept=".pdf,.doc,.docx,.txt,.md,.csv,.xlsx"
-                />
-              </div>
-
-              {pendingFiles.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-sm font-semibold text-foreground">
-                      Archivos seleccionados ({pendingFiles.length})
-                    </h4>
-                    <Button onClick={handleConfirmUpload} size="sm" className="flex items-center space-x-2">
-                      <Upload className="h-4 w-4" />
-                      <span>Subir archivos</span>
-                    </Button>
-                  </div>
-                  <div className="space-y-2">
-                    {pendingFiles.map((file, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center space-x-3 p-2 bg-background rounded-lg border border-border"
-                      >
-                        <File className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{file.name}</p>
-                          <p className="text-xs text-muted-foreground">{formatFileSize(file.size)}</p>
-                        </div>
-                        <button
-                          onClick={() => handleRemovePendingFile(index)}
-                          className="p-1 hover:bg-destructive/10 rounded transition-all"
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {uploadingFiles.length > 0 && (
-                <div className="space-y-2">
-                  <h4 className="text-sm font-semibold text-foreground">Subiendo archivos...</h4>
-                  {uploadingFiles.map((uploadFile) => (
-                    <div
-                      key={uploadFile.id}
-                      className="flex items-center space-x-3 p-2 bg-background rounded-lg border border-border"
-                    >
-                      <File className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{uploadFile.file.name}</p>
-                      </div>
-                      {uploadFile.status === "uploading" && (
-                        <Loader2 className="h-4 w-4 text-primary animate-spin flex-shrink-0" />
-                      )}
-                      {uploadFile.status === "success" && (
-                        <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
-                      )}
-                      {uploadFile.status === "error" && <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0" />}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {isLoadingFiles ? (
-                <div className="flex items-center justify-center py-4">
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                </div>
-              ) : projectFiles.length > 0 ? (
-                <div className="space-y-3">
-                  {filesByCategory.map(
-                    (category) =>
-                      category.files.length > 0 && (
-                        <div key={category.value}>
-                          <div className="flex items-center space-x-2 mb-2">
-                            <span className="text-sm">{category.icon}</span>
-                            <h4 className="text-xs font-semibold text-muted-foreground uppercase">
-                              {category.label} ({category.files.length})
-                            </h4>
-                          </div>
-                          <div className="space-y-1">
-                            {category.files.map((file) => (
-                              <div
-                                key={file.id}
-                                className="flex items-center justify-between p-2 bg-background rounded-lg border border-border hover:border-primary/50 transition-colors group"
-                              >
-                                <div className="flex items-center space-x-2 flex-1 min-w-0">
-                                  <File className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                                  <div className="min-w-0 flex-1">
-                                    <p className="text-sm font-medium truncate">{file.original_filename}</p>
-                                    <p className="text-xs text-muted-foreground">{formatFileSize(file.file_size)}</p>
-                                  </div>
-                                </div>
-                                <button
-                                  onClick={() => handleDeleteFile(file.id)}
-                                  className="opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/10 rounded transition-all"
-                                >
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ),
-                  )}
-                </div>
-              ) : (
-                <p className="text-center text-sm text-muted-foreground py-4">No hay archivos en este proyecto</p>
-              )}
-
-              <Button variant="ghost" size="sm" onClick={() => setShowFileManager(false)} className="w-full">
-                Cerrar gestor de archivos
-              </Button>
-            </div>
-          </div>
-        </div>
+        <FileManager
+          projectId={projectId}
+          projectFiles={projectFiles}
+          isLoadingFiles={isLoadingFiles}
+          uploadingFiles={uploadingFiles}
+          pendingFiles={pendingFiles}
+          selectedCategory={selectedCategory}
+          onCategoryChange={setSelectedCategory}
+          onFileSelect={handleFileSelect}
+          onRemovePendingFile={handleRemovePendingFile}
+          onConfirmUpload={handleConfirmUpload}
+          onDeleteFile={handleDeleteFile}
+          onClose={() => setShowFileManager(false)}
+        />
       )}
 
       {/* Messages Area */}
       {!conversationId ? (
-        <WelcomeScreen />
+        <WelcomeScreen userName={user?.full_name || user?.username} />
       ) : (
         <ScrollArea className="flex-1 p-4 overflow-auto bg-white">
           {isLoadingMessages ? (
@@ -934,380 +719,19 @@ export function ChatInterface({
           ) : (
             <div className="space-y-4 max-w-4xl mx-auto">
               {messages.map((message) => (
-                <div
+                <MessageItem
                   key={message.id}
-                  className={cn("flex w-full", message.role === "user" ? "justify-end" : "justify-start")}
-                >
-                  <div
-                    className={cn(
-                      "max-w-[80%] rounded-lg px-4 py-3",
-                      message.role === "user" ? "bg-[#EBEEFF] text-gray-900 rounded-3xl ml-12" : "bg-transparent mr-12",
-                    )}
-                  >
-                    {message.role === "assistant" && (
-                      <div className="flex items-start gap-3 mb-3">
-                        <div className="flex-shrink-0">
-                          <Image src="/icons/logo_clara_azul.svg" alt="Clara" width={24} height={24} />
-                        </div>
-                        <div className="flex-1">
-                          {editingMessageId === message.id ? (
-                            <div className="space-y-2">
-                              <Textarea
-                                value={editingContent}
-                                onChange={(e) => setEditingContent(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter" && e.ctrlKey) {
-                                    e.preventDefault()
-                                    handleSaveEdit(message.id)
-                                  } else if (e.key === "Escape") {
-                                    handleCancelEdit()
-                                  }
-                                }}
-                                className="w-full min-h-[100px] resize-y"
-                                autoFocus
-                              />
-                              <div className="flex items-center space-x-2">
-                                <Button size="sm" onClick={() => handleSaveEdit(message.id)} className="h-7">
-                                  <Check className="h-3 w-3 mr-1" />
-                                  Guardar
-                                </Button>
-                                <Button size="sm" variant="ghost" onClick={handleCancelEdit} className="h-7">
-                                  <X className="h-3 w-3 mr-1" />
-                                  Cancelar
-                                </Button>
-                              </div>
-                              <p className="text-xs opacity-70">Presiona Ctrl+Enter para guardar</p>
-                            </div>
-                          ) : (
-                            <>
-                              <div className="text-sm leading-relaxed text-foreground">
-                                {(() => {
-                                  let responseData = null
-                                  try {
-                                    if (typeof message.content === "object") {
-                                      responseData = message.content
-                                    } else if (
-                                      typeof message.content === "string" &&
-                                      (message.content.includes("conceptual") || message.content.includes("accional"))
-                                    ) {
-                                      responseData = JSON.parse(message.content)
-                                    }
-                                  } catch (e) {
-                                    responseData = null
-                                  }
-
-                                  if (
-                                    responseData &&
-                                    responseData.response_type !== "normal" &&
-                                    (responseData.conceptual || responseData.accional)
-                                  ) {
-                                    const hasConceptual = responseData.conceptual && responseData.conceptual.content
-                                    const hasAccional = responseData.accional && responseData.accional.content
-
-                                    return (
-                                      <div className="space-y-2 min-w-[400px]">
-                                        {hasConceptual && (
-                                          <Card className="mb-3 border border-border hover:shadow-md transition-all duration-200">
-                                            <button
-                                              onClick={() => toggleDropdown(message.id, "conceptual")}
-                                              className="w-full p-4 text-left flex items-center justify-between hover:bg-accent/50 transition-colors rounded-t-lg"
-                                            >
-                                              <div className="flex items-center space-x-3">
-                                                <div className="p-2 rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300">
-                                                  <Lightbulb className="h-5 w-5" />
-                                                </div>
-                                                <h3 className="font-semibold text-foreground">Análisis Conceptual</h3>
-                                              </div>
-                                              {openDropdowns[`${message.id}-conceptual`] ? (
-                                                <ChevronUp className="h-5 w-5" />
-                                              ) : (
-                                                <ChevronDown className="h-5 w-5" />
-                                              )}
-                                            </button>
-
-                                            {openDropdowns[`${message.id}-conceptual`] && (
-                                              <div className="px-4 pb-4 border-t border-border bg-muted/20">
-                                                <div className="pt-4 prose prose-sm max-w-none dark:prose-invert">
-                                                  {responseData.conceptual.content.split("\n").map((line, index) => {
-                                                    if (line.startsWith("### "))
-                                                      return (
-                                                        <h3
-                                                          key={index}
-                                                          className="text-sm font-semibold mt-2 mb-1 text-foreground"
-                                                        >
-                                                          {line.substring(4)}
-                                                        </h3>
-                                                      )
-                                                    if (line.includes("**")) {
-                                                      const parts = line.split(/(\*\*.*?\*\*)/g)
-                                                      return (
-                                                        <p key={index} className="mb-2 text-foreground">
-                                                          {parts.map((part, partIndex) =>
-                                                            part.startsWith("**") && part.endsWith("**") ? (
-                                                              <strong key={partIndex}>{part.slice(2, -2)}</strong>
-                                                            ) : (
-                                                              part
-                                                            ),
-                                                          )}
-                                                        </p>
-                                                      )
-                                                    }
-                                                    if (/^\d+\.\s/.test(line))
-                                                      return (
-                                                        <div key={index} className="ml-4 mb-1 text-foreground">
-                                                          {line}
-                                                        </div>
-                                                      )
-                                                    if (line.startsWith("- "))
-                                                      return (
-                                                        <div key={index} className="ml-4 mb-1 text-foreground">
-                                                          • {line.substring(2)}
-                                                        </div>
-                                                      )
-                                                    if (line.trim() === "") return <br key={index} />
-                                                    return (
-                                                      <p key={index} className="mb-2 text-foreground">
-                                                        {line}
-                                                      </p>
-                                                    )
-                                                  })}
-                                                </div>
-                                              </div>
-                                            )}
-                                          </Card>
-                                        )}
-
-                                        {hasAccional && (
-                                          <Card className="mb-3 border border-border hover:shadow-md transition-all duration-200">
-                                            <button
-                                              onClick={() => toggleDropdown(message.id, "accional")}
-                                              className="w-full p-4 text-left flex items-center justify-between hover:bg-accent/50 transition-colors rounded-t-lg"
-                                            >
-                                              <div className="flex items-center space-x-3">
-                                                <div className="p-2 rounded-lg bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-300">
-                                                  <Target className="h-5 w-5" />
-                                                </div>
-                                                <div>
-                                                  <h3 className="font-semibold text-foreground">Plan de Acción</h3>
-                                                  <div className="flex items-center space-x-2 mt-1">
-                                                    {responseData.accional.priority && (
-                                                      <Badge variant="outline" className="text-xs">
-                                                        {responseData.accional.priority}
-                                                      </Badge>
-                                                    )}
-                                                    {responseData.accional.timeline && (
-                                                      <Badge
-                                                        variant="secondary"
-                                                        className="text-xs flex items-center space-x-1"
-                                                      >
-                                                        <Clock className="h-3 w-3" />
-                                                        <span>{responseData.accional.timeline}</span>
-                                                      </Badge>
-                                                    )}
-                                                  </div>
-                                                </div>
-                                              </div>
-                                              {openDropdowns[`${message.id}-accional`] ? (
-                                                <ChevronUp className="h-5 w-5" />
-                                              ) : (
-                                                <ChevronDown className="h-5 w-5" />
-                                              )}
-                                            </button>
-
-                                            {openDropdowns[`${message.id}-accional`] && (
-                                              <div className="px-4 pb-4 border-t border-border bg-muted/20">
-                                                <div className="pt-4 prose prose-sm max-w-none dark:prose-invert">
-                                                  {responseData.accional.content.split("\n").map((line, index) => {
-                                                    if (line.startsWith("### "))
-                                                      return (
-                                                        <h3
-                                                          key={index}
-                                                          className="text-sm font-semibold mt-2 mb-1 text-foreground"
-                                                        >
-                                                          {line.substring(4)}
-                                                        </h3>
-                                                      )
-                                                    if (line.includes("**")) {
-                                                      const parts = line.split(/(\*\*.*?\*\*)/g)
-                                                      return (
-                                                        <p key={index} className="mb-2 text-foreground">
-                                                          {parts.map((part, partIndex) =>
-                                                            part.startsWith("**") && part.endsWith("**") ? (
-                                                              <strong key={partIndex}>{part.slice(2, -2)}</strong>
-                                                            ) : (
-                                                              part
-                                                            ),
-                                                          )}
-                                                        </p>
-                                                      )
-                                                    }
-                                                    if (/^\d+\.\s/.test(line))
-                                                      return (
-                                                        <div key={index} className="ml-4 mb-1 text-foreground">
-                                                          {line}
-                                                        </div>
-                                                      )
-                                                    if (line.startsWith("   - "))
-                                                      return (
-                                                        <div key={index} className="ml-8 mb-1 text-foreground">
-                                                          • {line.substring(5)}
-                                                        </div>
-                                                      )
-                                                    if (line.startsWith("- "))
-                                                      return (
-                                                        <div key={index} className="ml-4 mb-1 text-foreground">
-                                                          • {line.substring(2)}
-                                                        </div>
-                                                      )
-                                                    if (line.trim() === "") return <br key={index} />
-                                                    return (
-                                                      <p key={index} className="mb-2 text-foreground">
-                                                        {line}
-                                                      </p>
-                                                    )
-                                                  })}
-                                                </div>
-                                              </div>
-                                            )}
-                                          </Card>
-                                        )}
-                                        <p className="text-xs opacity-70 mt-2">
-                                          {new Date(message.timestamp).toLocaleTimeString()}
-                                        </p>
-                                      </div>
-                                    )
-                                  }
-
-                                  const content =
-                                    typeof message.content === "object"
-                                      ? message.content.conceptual?.content ||
-                                        message.content.accional?.content ||
-                                        JSON.stringify(message.content)
-                                      : message.content
-
-                                  return (
-                                    <div className="prose prose-sm max-w-none dark:prose-invert">
-                                      {content.split("\n").map((line, index) => {
-                                        if (line.startsWith("# ")) {
-                                          return (
-                                            <h1 key={index} className="text-lg font-bold mt-4 mb-2">
-                                              {line.substring(2)}
-                                            </h1>
-                                          )
-                                        }
-                                        if (line.startsWith("## ")) {
-                                          return (
-                                            <h2 key={index} className="text-base font-semibold mt-3 mb-2">
-                                              {line.substring(3)}
-                                            </h2>
-                                          )
-                                        }
-                                        if (line.startsWith("### ")) {
-                                          return (
-                                            <h3 key={index} className="text-sm font-semibold mt-2 mb-1">
-                                              {line.substring(4)}
-                                            </h3>
-                                          )
-                                        }
-                                        if (line === "---") {
-                                          return <hr key={index} className="my-4 border-border" />
-                                        }
-                                        if (line.includes("**")) {
-                                          const parts = line.split(/(\*\*.*?\*\*)/g)
-                                          return (
-                                            <p key={index} className="mb-2">
-                                              {parts.map((part, partIndex) =>
-                                                part.startsWith("**") && part.endsWith("**") ? (
-                                                  <strong key={partIndex}>{part.slice(2, -2)}</strong>
-                                                ) : (
-                                                  part
-                                                ),
-                                              )}
-                                            </p>
-                                          )
-                                        }
-                                        if (/^\d+\.\s/.test(line)) {
-                                          return (
-                                            <div key={index} className="ml-4 mb-1">
-                                              {line}
-                                            </div>
-                                          )
-                                        }
-                                        if (line.startsWith("   - ")) {
-                                          return (
-                                            <div key={index} className="ml-8 mb-1">
-                                              • {line.substring(5)}
-                                            </div>
-                                          )
-                                        }
-                                        if (line.startsWith("- ")) {
-                                          return (
-                                            <div key={index} className="ml-4 mb-1">
-                                              • {line.substring(2)}
-                                            </div>
-                                          )
-                                        }
-                                        if (line.trim() === "") {
-                                          return <br key={index} />
-                                        }
-                                        return (
-                                          <p key={index} className="mb-2">
-                                            {line}
-                                          </p>
-                                        )
-                                      })}
-                                    </div>
-                                  )
-                                })()}
-                              </div>
-                              {!(
-                                typeof message.content === "object" &&
-                                (message.content.conceptual || message.content.accional)
-                              )}
-                              <div className="flex items-center space-x-2 mt-3 pt-2  border-gray-200">
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(message.content)
-                                  }}
-                                  className="h-6 px-2 text-xs hover:bg-accent/50"
-                                >
-                                  <img src="icons/copiar.svg" alt="" className="h-4 w-4"/>
-                                </Button>
-                                <Button size="sm" variant="ghost" className="h-6 px-2 text-xs hover:bg-accent/50">
-                                  <img src="icons/descarga.svg" alt="" className="h-4 w-4"/>
-                                </Button>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    {message.role === "user" && !message.id.startsWith("temp-") && (
-                      <div className="flex items-center space-x-2 mt-2 pt-2 border-t border-[#EBEEFF]/50">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleStartEdit(message.id, message.content)}
-                          className="h-6 px-2 text-xs hover:bg-[#EBEEFF]/50"
-                        >
-                          <Edit className="h-3 w-3 mr-1" />
-                          Editar
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleDeleteMessage(message.id)}
-                          className="h-6 px-2 text-xs hover:bg-destructive/10 hover:text-destructive"
-                        >
-                          <Trash2 className="h-3 w-3 mr-1" />
-                          Eliminar
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                  message={message}
+                  editingMessageId={editingMessageId}
+                  editingContent={editingContent}
+                  openDropdowns={openDropdowns}
+                  onStartEdit={handleStartEdit}
+                  onSaveEdit={handleSaveEdit}
+                  onCancelEdit={handleCancelEdit}
+                  onDeleteMessage={handleDeleteMessage}
+                  onEditingContentChange={setEditingContent}
+                  onToggleDropdown={toggleDropdown}
+                />
               ))}
 
               {isLoading && (
@@ -1325,120 +749,46 @@ export function ChatInterface({
           )}
         </ScrollArea>
       )}
+
       {/* Input */}
       {conversationId ? (
-        <div className="py-6 bg-white">
-          <div className="max-w-4xl mx-auto px-4">
-            <div className="flex items-center space-x-2 mb-8">
-              <Switch id="require-analysis" checked={requireAnalysis} onCheckedChange={setRequireAnalysis} />
-              <Label htmlFor="require-analysis" className="text-sm text-muted-foreground cursor-pointer">
-                Generar análisis conceptual y plan de acción estructurado
-              </Label>
-            </div>
-
-            <div className="flex items-center space-x-3 bg-white border border-gray-300 rounded-2xl px-6 py-3 hover:border-primary/50 transition-colors">
-              <Plus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-              <Input
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                placeholder="Escribe tu consulta para Clara"
-                disabled={isLoading}
-                className="flex-1 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-base px-0"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault()
-                    sendMessage(e)
-                  }
-                }}
-              />
-              <button className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-                  <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                  <line x1="12" x2="12" y1="19" y2="22" />
-                </svg>
-              </button>
-              <button
-                onClick={sendMessage}
-                disabled={isLoading || !inputValue.trim()}
-                className="rounded-full h-10 w-10 flex items-center justify-center flex-shrink-0 disabled:opacity-50"
-              >
-                <img src="/icons/circula_arrow.svg" alt="Enviar" className="h-10 w-10" />
-              </button>
-            </div>
-          </div>
-        </div>
+        <ChatInput
+          value={inputValue}
+          onChange={setInputValue}
+          onSubmit={sendMessage}
+          isLoading={isLoading}
+          requireAnalysis={requireAnalysis}
+          onRequireAnalysisChange={setRequireAnalysis}
+          hasConversation={true}
+        />
       ) : (
         <div className="border-border py-4 bg-white">
           <div className="max-w-4xl mx-auto px-8">
-            <div className="flex items-center space-x-3 bg-white border border-gray-300 rounded-2xl px-6 py-3 hover:border-primary/50 transition-colors">
-              <Plus className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-              <Input
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                placeholder="Escribe tu consulta para Clara"
-                disabled={isLoading}
-                className="flex-1 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-base px-0"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault()
-                    if (inputValue.trim()) {
-                      createNewConversation()
-                    }
-                  }
-                }}
-              />
-              <button className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-                  <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                  <line x1="12" x2="12" y1="19" y2="22" />
-                </svg>
-              </button>
-              <button
-                onClick={createNewConversation}
-                disabled={isLoading || !inputValue.trim()}
-                className="rounded-full h-10 w-10 flex items-center justify-center flex-shrink-0 disabled:opacity-50"
-              >
-                <img src="/icons/circula_arrow.svg" alt="Enviar" className="h-10 w-10" />
-              </button>
-            </div>
+            <ChatInput
+              value={inputValue}
+              onChange={setInputValue}
+              onSubmit={(e) => {
+                e.preventDefault()
+                if (inputValue.trim()) {
+                  createNewConversation()
+                }
+              }}
+              isLoading={isLoading}
+              requireAnalysis={requireAnalysis}
+              onRequireAnalysisChange={setRequireAnalysis}
+              hasConversation={false}
+            />
           </div>
         </div>
       )}
 
       {conversationId && (
-        <>
-          {console.log("[v0] Rendering ShareConversationDialog")}
-          {console.log("[v0] showShareDialog:", showShareDialog)}
-          {console.log("[v0] conversationId for dialog:", Number(conversationId))}
-          <ShareConversationDialog
-            open={showShareDialog}
-            onOpenChange={setShowShareDialog}
-            conversationId={conversationId}
-            conversationTitle={conversationTitle}
-          />
-        </>
+        <ShareConversationDialog
+          open={showShareDialog}
+          onOpenChange={setShowShareDialog}
+          conversationId={conversationId}
+          conversationTitle={conversationTitle}
+        />
       )}
     </div>
   )

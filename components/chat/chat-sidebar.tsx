@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
-import { Search, MoreHorizontal, Trash2, Edit, ChevronDown, ChevronRight, Plus } from "lucide-react"
+import { Search, MoreHorizontal, Trash2, Edit, ChevronDown, ChevronRight } from "lucide-react"
 import { getUser, logout } from "@/lib/auth"
 import { projectService } from "@/lib/projects"
 import { chatService, type Conversation as APIConversation } from "@/lib/chat"
@@ -57,6 +57,7 @@ export function ChatSidebar({
   const [projectsExpanded, setProjectsExpanded] = useState(true)
   const [chatsExpanded, setChatsExpanded] = useState(true)
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -152,7 +153,12 @@ export function ChatSidebar({
         setIsLoading(false)
       }
     }
+
     fetchConversations()
+
+    const intervalId = setInterval(fetchConversations, 3000)
+
+    return () => clearInterval(intervalId)
   }, [isClient, user, selectedProjectId, router])
 
   const createNewConversation = async (projectId?: number) => {
@@ -410,8 +416,8 @@ export function ChatSidebar({
             <img src="icons/logo_clara_azul.svg" alt="logo clara azul" />
           </div>
           <div>
-            <h2 className="font-semibold text-foreground text-sm">CLARA</h2>
-            <p className="text-xs text-muted-foreground">IA de estrategia de marca</p>
+            <h2 className="font-bold text-[#0A2FF1] text-sm">CLARA</h2>
+            <p className="text-xs text-[#0A2FF1]">IA de estrategia de marca</p>
           </div>
         </div>
 
@@ -428,9 +434,7 @@ export function ChatSidebar({
           <Button
             variant="ghost"
             className="w-full justify-start text-sm font-normal h-9 hover:bg-gray-50"
-            onClick={() => {
-              setSearchTerm(searchTerm.trim() === "" ? " " : "")
-            }}
+            onClick={() => setIsSearchOpen(!isSearchOpen)}
           >
             <img src="/icons/lupita.svg" alt="Buscar chat" className="h-4 w-4 mr-3" />
             <span className="text-gray-700">Buscar chat</span>
@@ -439,7 +443,7 @@ export function ChatSidebar({
       </div>
 
       {/* Search Bar */}
-      {searchTerm.trim() !== "" && (
+      {isSearchOpen && (
         <div className="px-4 pt-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -491,7 +495,8 @@ export function ChatSidebar({
                           onClick={() => createNewProject()}
                           className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-sm transition-colors text-gray-700 hover:bg-white"
                         >
-                          <img src="icons/agregar_carpeta.svg" alt="" />
+                          <img src="icons/agregar_carpeta.svg" alt="agregar carpeta" className="h-4 w-4" />
+
                           <span>Nuevo proyecto</span>
                         </button>
                       </div>
@@ -501,7 +506,7 @@ export function ChatSidebar({
                           onClick={() => createNewProject()}
                           className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-sm transition-colors text-gray-700 hover:bg-white"
                         >
-                          <img src="icons/agregar_carpeta.svg" alt="agregar carpeta" className=" h-4 w-4" />
+                          <img src="icons/agregar_carpeta.svg" alt="agregar carpeta" className="h-4 w-4" />
                           <span>Nuevo proyecto</span>
                         </button>
 
@@ -509,7 +514,7 @@ export function ChatSidebar({
                           <div
                             key={project.id}
                             className={cn(
-                              "group flex items-center justify-between px-2 py-1.5 rounded-md transition-colors",
+                              "group relative flex items-center justify-between px-2 py-1.5 rounded-md transition-colors",
                               selectedProjectId === project.id
                                 ? "bg-white text-gray-900"
                                 : "text-gray-700 hover:bg-white",
@@ -539,7 +544,7 @@ export function ChatSidebar({
                               {openMenuId === `project-${project.id}` && (
                                 <>
                                   <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)} />
-                                  <div className="absolute right-0 top-8 z-20 w-48 rounded-lg border border-gray-200 bg-white p-1 shadow-lg">
+                                  <div className="absolute right-0 top-full mt-1 z-20 w-48 rounded-lg border border-gray-200 bg-white p-1 shadow-lg">
                                     <button
                                       className="flex w-full items-center rounded-md px-3 py-2 text-sm text-red-600 hover:bg-red-50"
                                       onClick={(e) => {
@@ -593,7 +598,7 @@ export function ChatSidebar({
                     <div
                       key={conversation.id}
                       className={cn(
-                        "group flex items-start justify-between px-2 py-2 rounded-md transition-colors cursor-pointer",
+                        "group relative flex items-start justify-between px-2 py-2 rounded-md transition-colors cursor-pointer",
                         activeConversationId === conversation.session_id ? "bg-[#EBEEFF]" : "hover:bg-[#EBEEFF]",
                       )}
                       onClick={() => {
@@ -641,69 +646,66 @@ export function ChatSidebar({
                               >
                                 {conversation.messageCount} mensajes
                               </span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className={cn(
+                                  "h-4 w-4 p-0 opacity-0 group-hover:opacity-100 transition-opacity",
+                                  activeConversationId === conversation.session_id
+                                    ? "hover:bg-blue-200 text-blue-700"
+                                    : "hover:bg-blue-200 text-gray-600",
+                                )}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setOpenMenuId(
+                                    openMenuId === `conv-${conversation.id}` ? null : `conv-${conversation.id}`,
+                                  )
+                                }}
+                              >
+                                <MoreHorizontal className="h-3 w-3" />
+                              </Button>
                             </div>
                           </>
                         )}
                       </div>
 
-                      {editingConversationId !== conversation.id && (
-                        <div className="relative opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className={cn(
-                              "h-6 w-6 p-0",
-                              activeConversationId === conversation.session_id
-                                ? "hover:bg-blue-200 text-blue-700"
-                                : "hover:bg-blue-200 text-gray-600",
-                            )}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setOpenMenuId(openMenuId === `conv-${conversation.id}` ? null : `conv-${conversation.id}`)
-                            }}
-                          >
-                            <MoreHorizontal className="h-3.5 w-3.5" />
-                          </Button>
-
-                          {openMenuId === `conv-${conversation.id}` && (
-                            <>
-                              <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)} />
-                              <div className="absolute right-0 top-8 z-20 w-48 rounded-lg border border-gray-200 bg-white p-1 shadow-lg">
-                                <button
-                                  className="flex w-full items-center rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    alert("Función de compartir próximamente")
-                                    setOpenMenuId(null)
-                                  }}
-                                >
-                                  <img src="/icons/descarga.svg" alt="icono compartir" className="h-4 w-4 mr-2" />
-                                  Compartir
-                                </button>
-                                <button
-                                  className="flex w-full items-center rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    renameConversation(conversation.id, conversation.title)
-                                  }}
-                                >
-                                  <Edit className="h-4 w-4 mr-2" />
-                                  Renombrar
-                                </button>
-                                <button
-                                  className="flex w-full items-center rounded-md px-3 py-2 text-sm text-red-600 hover:bg-red-50"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    deleteConversation(conversation.id)
-                                  }}
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Eliminar
-                                </button>
-                              </div>
-                            </>
-                          )}
-                        </div>
+                      {editingConversationId !== conversation.id && openMenuId === `conv-${conversation.id}` && (
+                        <>
+                          <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)} />
+                          <div className="absolute right-0 top-full mt-1 z-20 w-48 rounded-lg border border-gray-200 bg-white p-1 shadow-lg">
+                            <button
+                              className="flex w-full items-center rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                alert("Función de compartir próximamente")
+                                setOpenMenuId(null)
+                              }}
+                            >
+                              <img src="/icons/descarga.svg" alt="icono compartir" className="h-4 w-4 mr-2" />
+                              Compartir
+                            </button>
+                            <button
+                              className="flex w-full items-center rounded-md px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                renameConversation(conversation.id, conversation.title)
+                              }}
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Renombrar
+                            </button>
+                            <button
+                              className="flex w-full items-center rounded-md px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                deleteConversation(conversation.id)
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Eliminar
+                            </button>
+                          </div>
+                        </>
                       )}
                     </div>
                   ))
@@ -722,7 +724,7 @@ export function ChatSidebar({
               <img src="/icons/user_circulo.svg" alt="user icon" className="h-6 w-6" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-gray-900 truncate">{user?.full_name || user?.username}</p>
+              <p className="text-sm font-medium text-gray-900 truncate">{user?.full_name || user?.username}</p>
               <p className="text-xs text-gray-500 truncate">{user?.company?.name}</p>
             </div>
             <img src="/icons/logout.svg" alt="log out" className="h-5 w-5" />
@@ -765,34 +767,67 @@ export function ChatSidebar({
             </div>
 
             {/* Iconos de acciones */}
-            <div className="flex flex-col items-center gap-4 pt-4">
+            <div className="flex flex-col items-center gap-48 pt-8 px-4">
+              <div className="flex flex-col items-center gap-6">
+                <Button
+                  onClick={() => createNewConversation(selectedProjectId || undefined)}
+                  variant="ghost"
+                  size="sm"
+                  className="w-4 h-4 p-0 hover:bg-gray-100 rounded-lg"
+                  title="Nuevo chat"
+                >
+                  <img src="/icons/lapiz_cuadro.svg" alt="Nuevo chat" className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-4 h-4 p-0 hover:bg-gray-100 rounded-lg"
+                  title="Buscar chat"
+                  onClick={() => setIsSearchOpen(!isSearchOpen)}
+                >
+                  <img src="/icons/lupita.svg" alt="Buscar chat" className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-4 h-4 p-0 hover:bg-gray-100 rounded-lg"
+                  title="Ver proyectos"
+                  onClick={() => setProjectsExpanded(!projectsExpanded)}
+                >
+                  <img src="/icons/carpeta.svg" alt="Ver proyectos" className="w-4 h-4" />
+                </Button>
+                <Button
+                  onClick={() => createNewProject()}
+                  variant="ghost"
+                  size="sm"
+                  className="w-4 h-4 p-0 hover:bg-gray-100 rounded-lg"
+                  title="Crear proyecto"
+                >
+                  <img src="/icons/agregar_carpeta.svg" alt="Crear proyecto" className="w-4 h-4" />
+                </Button>
+              </div>
+
               <Button
-                onClick={() => createNewConversation(selectedProjectId || undefined)}
+                onClick={() => setChatsExpanded(!chatsExpanded)}
                 variant="ghost"
                 size="sm"
-                className="w-10 h-10 p-0 hover:bg-gray-50"
-                title="Nuevo chat"
+                className="w-4 h-4 p-0 hover:bg-gray-100 rounded-lg"
+                title="Ver chats"
               >
-                <img src="/icons/lapiz_cuadro.svg" alt="" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="w-10 h-10 p-0 hover:bg-gray-50"
-                title="Buscar chat"
-                onClick={() => {
-                  setSearchTerm(searchTerm.trim() === "" ? " " : "")
-                }}
-              >
-                <Search className="h-5 w-5 text-gray-600" />
+                <img src="/icons/viñeta.svg" alt="Ver chats" className="w-4 h-4" />
               </Button>
             </div>
 
             {/* User icon en el footer */}
-            <div className="mt-auto px-4 py-3 border-t border-gray-200 flex justify-center">
-              <div>
-                <img src="icons/user_circulo.svg" alt="logo usuario" />
-              </div>
+            <div className="mt-auto px-4 py-6 border-t border-gray-200 flex justify-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-10 h-10 p-0 rounded-full flex items-center justify-center"
+                title="Usuario"
+              >
+                <img src="/icons/user_circulo.svg" alt="Usuario" className="w-6 h-6" />
+              </Button>
             </div>
           </div>
         ) : (
