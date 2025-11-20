@@ -46,11 +46,11 @@ export function MessageItem({
         <div className="max-w-[80%] rounded-lg px-4 py-3 bg-[#EBEEFF] text-gray-900 rounded-3xl ml-12">
           {isEditing ? (
             <div className="space-y-2">
-              <Textarea
+<Textarea
                 value={editingContent}
                 onChange={(e) => onEditingContentChange(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && e.ctrlKey) {
+                  if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey) {
                     e.preventDefault()
                     onSaveEdit(message.id)
                   } else if (e.key === "Escape") {
@@ -58,6 +58,11 @@ export function MessageItem({
                   }
                 }}
                 className="w-full min-h-[100px] resize-y"
+                style={{ 
+                  wordBreak: "break-word", 
+                  overflowWrap: "break-word",
+                  whiteSpace: "pre-wrap"
+                }}
                 autoFocus
               />
               <div className="flex items-center space-x-2">

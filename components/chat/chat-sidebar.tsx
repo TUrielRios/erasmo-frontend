@@ -156,9 +156,17 @@ export function ChatSidebar({
 
     fetchConversations()
 
-    const intervalId = setInterval(fetchConversations, 3000)
+    // Exponer la función globalmente para que el componente de chat la pueda llamar
+    if (typeof window !== "undefined") {
+      (window as any).refreshConversations = fetchConversations
+    }
 
-    return () => clearInterval(intervalId)
+    // Limpiar al desmontar
+    return () => {
+      if (typeof window !== "undefined") {
+        delete (window as any).refreshConversations
+      }
+    }
   }, [isClient, user, selectedProjectId, router])
 
   const createNewConversation = async (projectId?: number) => {

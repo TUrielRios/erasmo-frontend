@@ -13,6 +13,13 @@ import { MessageItem } from "./chat-interface-components/MessageItem"
 import { FileManager } from "./chat-interface-components/FileManager"
 import { WelcomeScreen } from "./chat-interface-components/WelcomeScreen"
 import { ChatInput } from "./chat-interface-components/ChatInput"
+import { FileAttachmentArea } from "./FileAttachmentArea"
+import { uploadAttachmentsToBackend, formatAttachmentsForBackend } from "@/lib/attachment-utils"
+import type { Attachment } from "@/lib/attachment-utils"
+
+// (I am pasting the user's code here, but since I can't copy-paste the whole thing from the prompt efficiently without bloating,
+// I will assume the user wants me to WRITE the file with the content they provided.
+// I will write the full content of the provided file here.)
 
 interface Message {
   id: string
@@ -56,11 +63,11 @@ export function ChatInterface({
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingMessages, setIsLoadingMessages] = useState(false)
   const [lastLoadedConversationId, setLastLoadedConversationId] = useState<string | null>(null)
-  const [openDropdowns, setOpenDropdowns] = useState({})
+  const [openDropdowns, setOpenDropdowns] = useState<Record<string, boolean>>({})
   const [showFileManager, setShowFileManager] = useState(false)
   const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([])
   const [isLoadingFiles, setIsLoadingFiles] = useState(false)
-  const [uploadingFiles, setUploadingFiles] = useState([])
+  const [uploadingFiles, setUploadingFiles] = useState<any[]>([])
   const [pendingFiles, setPendingFiles] = useState<File[]>([])
   const [selectedCategory, setSelectedCategory] = useState<"instructions" | "knowledge_base" | "reference" | "general">(
     "knowledge_base",
@@ -72,8 +79,11 @@ export function ChatInterface({
   const [showShareDialog, setShowShareDialog] = useState(false)
   const [conversationTitle, setConversationTitle] = useState("Nueva conversación")
   const [currentAssistantMessageId, setCurrentAssistantMessageId] = useState<string | null>(null)
+  const [attachments, setAttachments] = useState<Attachment[]>([])
+  const [showAttachmentArea, setShowAttachmentArea] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const scrollAreaRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const currentUser = getUser()
@@ -84,7 +94,7 @@ export function ChatInterface({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }
 
-  const toggleDropdown = (messageId, type) => {
+  const toggleDropdown = (messageId: string, type: string) => {
     const key = `${messageId}-${type}`
     setOpenDropdowns((prev) => ({
       ...prev,
@@ -349,6 +359,49 @@ export function ChatInterface({
     }
   }
 
+  const handleAttachFile = (files: FileList) => {
+    const newAttachments: Attachment[] = []
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      const isImage = file.type.startsWith("image/")
+
+      const attachment: Attachment = {
+        file,
+        id: `${Date.now()}-${i}`,
+        type: isImage ? "image" : "document",
+        filename: file.name,
+      }
+
+      // Generate preview for images
+      if (isImage) {
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          setAttachments((prev) =>
+            prev.map((att) => (att.id === attachment.id ? { ...att, preview: e.target?.result as string } : att)),
+          )
+        }
+        reader.readAsDataURL(file)
+      }
+
+      newAttachments.push(attachment)
+    }
+
+    setAttachments((prev) => [...prev, ...newAttachments])
+    setShowAttachmentArea(true)
+  }
+
+  const removeAttachment = (id: string) => {
+    setAttachments((prev) => prev.filter((a) => a.id !== id))
+    if (attachments.length - 1 === 0) {
+      setShowAttachmentArea(false)
+    }
+  }
+
+  const handleAttachmentsChange = (updatedAttachments: Attachment[]) => {
+    setAttachments(updatedAttachments)
+  }
+
   useEffect(() => {
     scrollToBottom()
   }, [messages])
@@ -435,12 +488,20 @@ export function ChatInterface({
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!inputValue.trim() || !conversationId || isLoading || !user) return
+    if ((!inputValue.trim() && attachments.length === 0) || !conversationId || isLoading || !user) return
 
     const tempUserMessageId = `temp-user-${Date.now()}`
+    let userMessageContent = inputValue.trim()
+    if (attachments.length > 0) {
+      const attachmentNames = attachments.map((a) => a.filename).join(", ")
+      userMessageContent = userMessageContent
+        ? `${userMessageContent}\n\n[Archivos adjuntos: ${attachmentNames}]`
+        : `[Archivos adjuntos: ${attachmentNames}]`
+    }
+
     const userMessage: Message = {
       id: tempUserMessageId,
-      content: inputValue.trim(),
+      content: userMessageContent,
       role: "user",
       timestamp: new Date().toISOString(),
     }
@@ -448,6 +509,9 @@ export function ChatInterface({
     setMessages((prev) => [...prev, userMessage])
     const messageContent = inputValue.trim()
     setInputValue("")
+    const currentAttachments = [...attachments]
+    setAttachments([])
+    setShowAttachmentArea(false)
     setIsLoading(true)
 
     const tempAssistantMessageId = `temp-assistant-${Date.now() + 1}`
@@ -461,13 +525,26 @@ export function ChatInterface({
     setCurrentAssistantMessageId(tempAssistantMessageId)
 
     try {
+      let uploadedAttachments: Attachment[] = []
+      if (currentAttachments.length > 0) {
+        console.log("[CHAT] Uploading attachments...", currentAttachments.length)
+        uploadedAttachments = await uploadAttachmentsToBackend(currentAttachments, user.id, API_URL)
+        console.log("[CHAT] Attachments uploaded:", uploadedAttachments.length)
+      }
+
+      const attachmentsForBackend =
+        uploadedAttachments.length > 0 ? formatAttachmentsForBackend(uploadedAttachments) : undefined
+
       const requestBody = {
-        message: userMessage.content,
+        message: messageContent,
         session_id: conversationId,
         user_id: user.id,
         require_analysis: requireAnalysis,
         ...(projectId && { project_id: projectId }),
+        ...(attachmentsForBackend && { attachments: attachmentsForBackend }),
       }
+
+      console.log("[CHAT] Sending message with attachments:", requestBody.attachments?.length || 0)
 
       const queryParams = new URLSearchParams({
         user_id: user.id.toString(),
@@ -705,11 +782,24 @@ export function ChatInterface({
         />
       )}
 
+      {showAttachmentArea && (
+        <div className="px-4 py-4 bg-gray-50 border-t border-gray-200">
+          <div className="max-w-4xl mx-auto">
+            <FileAttachmentArea
+              attachments={attachments}
+              onRemove={removeAttachment}
+              onAttachmentsChange={handleAttachmentsChange}
+              disabled={isLoading}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Messages Area */}
       {!conversationId ? (
         <WelcomeScreen userName={user?.full_name || user?.username} />
       ) : (
-        <ScrollArea className="flex-1 p-4 overflow-auto bg-white">
+        <ScrollArea ref={scrollAreaRef} className="flex-1 p-4 overflow-auto bg-white">
           {isLoadingMessages ? (
             <div className="flex items-center justify-center h-32">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -760,6 +850,8 @@ export function ChatInterface({
           requireAnalysis={requireAnalysis}
           onRequireAnalysisChange={setRequireAnalysis}
           hasConversation={true}
+          onAttachFile={handleAttachFile}
+          attachmentCount={attachments.length}
         />
       ) : (
         <div className="border-border py-4 bg-white">
@@ -777,6 +869,8 @@ export function ChatInterface({
               requireAnalysis={requireAnalysis}
               onRequireAnalysisChange={setRequireAnalysis}
               hasConversation={false}
+              onAttachFile={handleAttachFile}
+              attachmentCount={attachments.length}
             />
           </div>
         </div>
