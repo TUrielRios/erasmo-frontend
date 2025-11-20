@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
-import { Search, MoreHorizontal, Trash2, Edit, ChevronDown, ChevronRight } from "lucide-react"
+import { Search, MoreHorizontal, Trash2, Edit, ChevronDown, ChevronRight, PanelLeft } from "lucide-react"
 import { getUser, logout } from "@/lib/auth"
 import { projectService } from "@/lib/projects"
 import { chatService, type Conversation as APIConversation } from "@/lib/chat"
@@ -398,27 +398,27 @@ export function ChatSidebar({
 
   const SidebarContent = () => (
     <div className="flex flex-col h-full relative" style={{ backgroundColor: "#F5F5F5" }}>
-      <button
-        onClick={() => setIsCollapsed(!isCollapsed)}
-        className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 z-30 w-8 h-12 bg-blue-600 rounded-r-lg items-center justify-center hover:bg-blue-700 transition-colors shadow-md"
-      >
-        {isCollapsed ? (
-          <ChevronRight className="h-5 w-5 text-white" />
-        ) : (
-          <ChevronRight className="h-5 w-5 text-white rotate-180" />
-        )}
-      </button>
-
       {/* Header con Logo */}
       <div className="px-4 py-6 border-b border-gray-200">
-        <div className="flex items-center gap-2 mb-6">
-          <div className="w-8 h-8 bg-grey rounded-lg flex items-center justify-center flex-shrink-0">
-            <img src="icons/logo_clara_azul.svg" alt="logo clara azul" />
+        <div className="flex items-center justify-between gap-2 mb-6">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-grey rounded-lg flex items-center justify-center flex-shrink-0">
+              <img src="icons/logo_clara_azul.svg" alt="logo clara azul" />
+            </div>
+            <div>
+              <h2 className="font-bold text-[#0A2FF1] text-sm">CLARA</h2>
+              <p className="text-xs text-[#0A2FF1]">IA de estrategia de marca</p>
+            </div>
           </div>
-          <div>
-            <h2 className="font-bold text-[#0A2FF1] text-sm">CLARA</h2>
-            <p className="text-xs text-[#0A2FF1]">IA de estrategia de marca</p>
-          </div>
+          <Button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            variant="ghost"
+            size="sm"
+            className="h-7 w-7 p-0 hover:bg-gray-200 rounded-lg flex-shrink-0"
+            title="Colapsar sidebar"
+          >
+            <PanelLeft className="h-4 w-4 text-gray-600" />
+          </Button>
         </div>
 
         {/* Botones principales */}
@@ -496,7 +496,6 @@ export function ChatSidebar({
                           className="flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-sm transition-colors text-gray-700 hover:bg-white"
                         >
                           <img src="icons/agregar_carpeta.svg" alt="agregar carpeta" className="h-4 w-4" />
-
                           <span>Nuevo proyecto</span>
                         </button>
                       </div>
@@ -631,9 +630,16 @@ export function ChatSidebar({
                           <>
                             <h3
                               className={cn(
-                                "text-sm font-medium truncate mb-0.5",
+                                "text-sm font-medium mb-0.5",
                                 activeConversationId === conversation.session_id ? "text-blue-700" : "text-gray-900",
                               )}
+                              style={{
+                                display: "-webkit-box",
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: "vertical",
+                                overflow: "hidden",
+                                wordBreak: "break-word",
+                              }}
                             >
                               {conversation.title}
                             </h3>
@@ -751,19 +757,21 @@ export function ChatSidebar({
         )}
       >
         {isCollapsed ? (
-          <div className="flex flex-col h-full relative" style={{ backgroundColor: "#F5F5F5" }}>
-            <button
-              onClick={() => setIsCollapsed(false)}
-              className="absolute -right-3 top-1/2 -translate-y-1/2 z-30 w-8 h-12 bg-blue-600 rounded-r-lg flex items-center justify-center hover:bg-blue-700 transition-colors shadow-md"
-            >
-              <ChevronRight className="h-5 w-5 text-white" />
-            </button>
-
-            {/* Logo colapsado */}
-            <div className="px-4 py-6 border-b border-gray-200 flex justify-center">
-              <div className="w-8 h-8 bg-grey rounded-lg flex items-center justify-center">
+          <div className="flex flex-col h-full relative group" style={{ backgroundColor: "#F5F5F5" }}>
+            {/* Logo colapsado con botón hover */}
+            <div className="px-4 py-6 border-b border-gray-200 flex justify-center relative">
+              <div className="w-8 h-8 bg-grey rounded-lg flex items-center justify-center group-hover:opacity-0 transition-opacity">
                 <img src="icons/logo_clara_azul.svg" alt="logo clara azul" />
               </div>
+              <Button
+                onClick={() => setIsCollapsed(false)}
+                variant="ghost"
+                size="sm"
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-gray-200 rounded-lg"
+                title="Expandir sidebar"
+              >
+                <PanelLeft className="h-5 w-5 text-[#0A2FF1]" />
+              </Button>
             </div>
 
             {/* Iconos de acciones */}
