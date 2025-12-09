@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Menu, Loader2, Upload, Folder } from "lucide-react"
@@ -401,6 +401,48 @@ export function ChatInterface({
   const handleAttachmentsChange = (updatedAttachments: Attachment[]) => {
     setAttachments(updatedAttachments)
   }
+
+  // Handle paste events to capture images from clipboard
+  const handlePaste = useCallback(
+    async (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items
+      if (!items) return
+
+      for (const item of Array.from(items)) {
+        if (item.type.startsWith("image/")) {
+          e.preventDefault()
+
+          const blob = item.getAsFile()
+          if (!blob) continue
+
+          // Create File with unique name
+          const file = new File([blob], `pasted-image-${Date.now()}.png`, { type: blob.type })
+
+          // Convert File to FileList-like array
+          const fileList = {
+            length: 1,
+            item: (index: number) => (index === 0 ? file : null),
+            [0]: file,
+          } as unknown as FileList
+
+          // Add as attachment using existing handler
+          handleAttachFile(fileList)
+          break
+        }
+      }
+    },
+    [handleAttachFile],
+  )
+
+  // Register paste event listener
+  useEffect(() => {
+    const handlePasteEvent = (e: ClipboardEvent) => handlePaste(e)
+    document.addEventListener("paste", handlePasteEvent)
+
+    return () => {
+      document.removeEventListener("paste", handlePasteEvent)
+    }
+  }, [handlePaste])
 
   useEffect(() => {
     scrollToBottom()

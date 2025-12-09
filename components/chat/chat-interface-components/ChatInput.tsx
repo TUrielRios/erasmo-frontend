@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Plus, Paperclip } from 'lucide-react'
 import { useRef } from "react"
 
+
 interface ChatInputProps {
   value: string
   onChange: (value: string) => void
@@ -45,11 +46,14 @@ export function ChatInput({
     <div className="py-6 bg-white">
       <div className="max-w-4xl mx-auto px-4">
         {hasConversation && (
-          <div className="flex items-center space-x-2 mb-8">
-            <Switch id="require-analysis" checked={requireAnalysis} onCheckedChange={onRequireAnalysisChange} />
-            <Label htmlFor="require-analysis" className="text-sm text-muted-foreground cursor-pointer">
-              Generar análisis conceptual y plan de acción estructurado
-            </Label>
+          <div className="space-y-4 mb-6">
+            {/* Analysis Toggle */}
+            <div className="flex items-center space-x-2">
+              <Switch id="require-analysis" checked={requireAnalysis} onCheckedChange={onRequireAnalysisChange} />
+              <Label htmlFor="require-analysis" className="text-sm text-muted-foreground cursor-pointer">
+                Generar análisis conceptual y plan de acción estructurado
+              </Label>
+            </div>
           </div>
         )}
 
@@ -61,8 +65,8 @@ export function ChatInput({
             placeholder="Escribe tu consulta para Clara"
             disabled={isLoading}
             className="flex-1 border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-base px-0 resize-none min-h-[24px] max-h-[200px]"
-            style={{ 
-              wordBreak: "break-word", 
+            style={{
+              wordBreak: "break-word",
               overflowWrap: "break-word",
               whiteSpace: "pre-wrap"
             }}
@@ -79,7 +83,7 @@ export function ChatInput({
               target.style.height = Math.min(target.scrollHeight, 200) + 'px'
             }}
           />
-          
+
           <input
             ref={fileInputRef}
             type="file"
@@ -89,7 +93,7 @@ export function ChatInput({
             className="hidden"
             accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
           />
-          
+
           <div className="flex items-center space-x-2 flex-shrink-0 mt-2">
             <button
               onClick={() => fileInputRef.current?.click()}
@@ -104,7 +108,7 @@ export function ChatInput({
                 </span>
               )}
             </button>
-            
+
             <button className="text-muted-foreground hover:text-foreground transition-colors">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -131,7 +135,7 @@ export function ChatInput({
             </button>
           </div>
         </div>
-        
+
         <p className="text-xs text-muted-foreground mt-2 text-center">
           Presiona Enter para enviar, Shift+Enter para nueva línea
         </p>

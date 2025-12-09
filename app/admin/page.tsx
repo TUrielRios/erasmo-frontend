@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
-import { Search, Menu, AlertCircle, Loader2 } from "lucide-react"
+import { Search, Menu, AlertCircle, Loader2, Plus, FileCode, MoreHorizontal, Edit, Trash2, Users } from "lucide-react"
 import { getUser } from "@/lib/auth"
 import { useAdminApi, type Company, type Document } from "@/hooks/use-admin-api"
 import { AdminSidebar } from "@/components/admin/admin-sidebar"
@@ -18,6 +18,8 @@ import { DocumentsList } from "@/components/admin/documents-list"
 import { UploadDialog } from "@/components/admin/upload-dialog"
 import { EditDocumentDialog } from "@/components/admin/edit-document-dialog"
 import { CreateCompanyDialog } from "@/components/admin/create-company-dialog"
+import { CreateProtocolDialog } from "@/components/admin/create-protocol-dialog"
+import { getAuthToken } from "@/lib/auth"
 
 const AdminDashboard = () => {
   // Estados principales
@@ -37,6 +39,9 @@ const AdminDashboard = () => {
   const [editDocumentDialogOpen, setEditDocumentDialogOpen] = useState(false)
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
   const [createCompanyDialogOpen, setCreateCompanyDialogOpen] = useState(false)
+  const [createProtocolDialogOpen, setCreateProtocolDialogOpen] = useState(false)
+  const [protocols, setProtocols] = useState<any[]>([])
+  const [filteredProtocols, setFilteredProtocols] = useState<any[]>([])
 
   // Estados de formularios
   const [uploadForm, setUploadForm] = useState({
@@ -44,6 +49,8 @@ const AdminDashboard = () => {
     description: "",
     priority: 1,
     files: [] as File[],
+    useProtocol: false,
+    protocolId: null as number | null,
   })
 
   const [editForm, setEditForm] = useState({
@@ -60,6 +67,15 @@ const AdminDashboard = () => {
     description: "",
   })
 
+  const [createProtocolForm, setCreateProtocolForm] = useState({
+    name: "",
+    description: "",
+    content: "",
+    version: "v1",
+    category: "",
+    is_active: true,
+  })
+
   const user = getUser()
   const api = useAdminApi()
 
@@ -74,6 +90,32 @@ const AdminDashboard = () => {
 
     loadInitialData()
   }, [])
+
+  // Load protocols when tab changes to protocols
+  useEffect(() => {
+    if (activeTab === "protocols") {
+      fetchProtocols()
+    }
+  }, [activeTab])
+
+  const fetchProtocols = async () => {
+    try {
+      const token = getAuthToken()
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/protocols/`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setProtocols(data)
+        setFilteredProtocols(data)
+      }
+    } catch (error) {
+      console.error("Error fetching protocols:", error)
+    }
+  }
 
   // Cargar detalles de compañía seleccionada
   useEffect(() => {
@@ -92,6 +134,17 @@ const AdminDashboard = () => {
     }
   }, [selectedCompany])
 
+  // Filter protocols by search
+  useEffect(() => {
+    const filtered = protocols.filter(
+      (protocol) =>
+        protocol.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        protocol.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        protocol.category?.toLowerCase().includes(searchTerm.toLowerCase()),
+    )
+    setFilteredProtocols(filtered)
+  }, [searchTerm, protocols])
+
   // Configurar formulario de edición cuando se selecciona un documento
   useEffect(() => {
     if (selectedDocument) {
@@ -107,23 +160,68 @@ const AdminDashboard = () => {
   // Handlers
   const handleUploadDocuments = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedCompany || uploadForm.files.length === 0) return
+    if (!selectedCompany) return
 
-    const result = await api.uploadDocuments(
-      selectedCompany.id,
-      uploadForm.files,
-      uploadForm.category,
-      uploadForm.description,
-      uploadForm.priority,
-    )
+    // Validar según el tipo de contenido
+    if (uploadForm.useProtocol) {
+      if (!uploadForm.protocolId) {
+        alert("Debes seleccionar un protocolo")
+        return
+      }
 
-    if (result) {
-      setUploadForm({ category: "knowledge_base", description: "", priority: 1, files: [] })
-      setUploadDialogOpen(false)
+      // Crear documento vinculado a protocolo
+      const result = await api.linkProtocolToCompany(
+        selectedCompany.id,
+        uploadForm.protocolId,
+        uploadForm.category,
+        uploadForm.description,
+        uploadForm.priority,
+      )
 
-      // Recargar documentos
-      const documents = await api.loadCompanyDocuments(selectedCompany.id)
-      if (documents) setCompanyDocuments(documents)
+      if (result) {
+        setUploadForm({
+          category: "knowledge_base",
+          description: "",
+          priority: 1,
+          files: [],
+          useProtocol: false,
+          protocolId: null,
+        })
+        setUploadDialogOpen(false)
+
+        // Recargar documentos
+        const documents = await api.loadCompanyDocuments(selectedCompany.id)
+        if (documents) setCompanyDocuments(documents)
+      }
+    } else {
+      if (uploadForm.files.length === 0) {
+        alert("Debes seleccionar al menos un archivo")
+        return
+      }
+
+      const result = await api.uploadDocuments(
+        selectedCompany.id,
+        uploadForm.files,
+        uploadForm.category,
+        uploadForm.description,
+        uploadForm.priority,
+      )
+
+      if (result) {
+        setUploadForm({
+          category: "knowledge_base",
+          description: "",
+          priority: 1,
+          files: [],
+          useProtocol: false,
+          protocolId: null,
+        })
+        setUploadDialogOpen(false)
+
+        // Recargar documentos
+        const documents = await api.loadCompanyDocuments(selectedCompany.id)
+        if (documents) setCompanyDocuments(documents)
+      }
     }
   }
 
@@ -182,6 +280,44 @@ const AdminDashboard = () => {
     }
   }
 
+  const handleCreateProtocol = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    try {
+      const token = getAuthToken()
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/protocols/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(createProtocolForm),
+      })
+
+      if (response.ok) {
+        // Reset form and close dialog
+        setCreateProtocolForm({
+          name: "",
+          description: "",
+          content: "",
+          version: "v1",
+          category: "",
+          is_active: true,
+        })
+        setCreateProtocolDialogOpen(false)
+
+        // Reload protocols list
+        await fetchProtocols()
+      } else {
+        const error = await response.json()
+        alert(`Error: ${error.detail || "Error al crear protocolo"}`)
+      }
+    } catch (error) {
+      console.error("Error creating protocol:", error)
+      alert("Error al crear protocolo")
+    }
+  }
+
   // Filtrar compañías
   const filteredCompanies = companies.filter(
     (company) =>
@@ -216,7 +352,11 @@ const AdminDashboard = () => {
               <div className="flex items-center space-x-2">
                 <div>
                   <h1 className="font-bold text-2xl text-blue-600">
-                    {activeTab === "dashboard" ? "Dashboard" : "Gestión de subagentes"}
+                    {activeTab === "dashboard"
+                      ? "Dashboard"
+                      : activeTab === "protocols"
+                        ? "Protocolos Centralizados"
+                        : "Gestión de subagentes"}
                   </h1>
                 </div>
               </div>
@@ -314,6 +454,92 @@ const AdminDashboard = () => {
               )}
             </div>
           )}
+
+          {activeTab === "protocols" && (
+            <div className="space-y-6">
+              {/* Header con botón crear */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-muted-foreground text-sm">
+                    Gestiona protocolos reutilizables para múltiples sub-agentes
+                  </p>
+                </div>
+                <Button
+                  onClick={() => setCreateProtocolDialogOpen(true)}
+                  className="bg-[#0000FF] hover:bg-[#0000DD]"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Nuevo Protocolo
+                </Button>
+              </div>
+
+              {/* Buscador */}
+              <div className="flex items-center space-x-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar protocolos..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+
+              {/* Card con lista de protocolos */}
+              <div className="bg-white rounded-lg border shadow-sm">
+                <div className="p-6">
+                  <h3 className="text-lg font-semibold mb-4">
+                    Biblioteca de Protocolos ({filteredProtocols.length})
+                  </h3>
+
+                  {filteredProtocols.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <FileCode className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>{searchTerm ? "No se encontraron protocolos" : "No hay protocolos creados aún"}</p>
+                      <p className="text-sm mt-2">Crea un protocolo para reutilizarlo en múltiples sub-agentes</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {filteredProtocols.map((protocol) => (
+                        <div
+                          key={protocol.id}
+                          className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
+                        >
+                          <div className="flex items-center space-x-4 flex-1">
+                            <FileCode className="h-5 w-5 text-blue-600" />
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-2">
+                                <h4 className="font-medium">{protocol.name}</h4>
+                                <Badge variant="secondary" className="text-xs">{protocol.version}</Badge>
+                                {protocol.category && (
+                                  <Badge variant="outline" className="text-xs">{protocol.category}</Badge>
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground mt-1">{protocol.description}</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center space-x-4">
+                            <div className="text-sm text-muted-foreground flex items-center">
+                              <Users className="h-4 w-4 mr-1" />
+                              {protocol.usage_count || 0} sub-agentes
+                            </div>
+                            <Badge variant={protocol.is_active ? "default" : "secondary"}>
+                              {protocol.is_active ? "Activo" : "Inactivo"}
+                            </Badge>
+                            <Button variant="ghost" size="sm">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </ScrollArea>
       </div>
 
@@ -324,6 +550,15 @@ const AdminDashboard = () => {
         form={createCompanyForm}
         setForm={setCreateCompanyForm}
         onSubmit={handleCreateCompany}
+        loading={api.loading}
+      />
+
+      <CreateProtocolDialog
+        open={createProtocolDialogOpen}
+        onOpenChange={setCreateProtocolDialogOpen}
+        form={createProtocolForm}
+        setForm={setCreateProtocolForm}
+        onSubmit={handleCreateProtocol}
         loading={api.loading}
       />
 

@@ -140,6 +140,29 @@ export const useAdminApi = () => {
     )
   }
 
+  const linkProtocolToCompany = async (
+    companyId: string,
+    protocolId: number,
+    category: string,
+    description: string,
+    priority: number,
+  ): Promise<any> => {
+    const formData = new FormData()
+    formData.append("category", category)
+    formData.append("description", description)
+    formData.append("priority", priority.toString())
+    formData.append("use_protocol", "true")
+    formData.append("protocol_id", protocolId.toString())
+    formData.append("filename", `Protocol_${protocolId}`)
+
+    return handleApiCall(() =>
+      fetch(`${API_BASE}/api/v1/admin/companies/${companyId}/documents`, {
+        method: "POST",
+        body: formData,
+      }),
+    )
+  }
+
   return {
     loading,
     error,
@@ -151,5 +174,6 @@ export const useAdminApi = () => {
     uploadDocuments,
     updateDocument,
     deleteDocument,
+    linkProtocolToCompany,
   }
 }
