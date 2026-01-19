@@ -6,9 +6,10 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Search, Menu, AlertCircle, Loader2, Plus, FileCode, MoreHorizontal, Edit, Trash2, Users } from "lucide-react"
 import { getUser } from "@/lib/auth"
-import { useAdminApi, type Company, type Document } from "@/hooks/use-admin-api"
+import { useAdminApi, type Company, type Document, type Dashboard } from "@/hooks/use-admin-api"
 import { AdminSidebar } from "@/components/admin/admin-sidebar"
 import { DashboardStats } from "@/components/admin/dashboard-stats"
 import { RecentCompanies } from "@/components/admin/recent-companies"
@@ -19,6 +20,8 @@ import { UploadDialog } from "@/components/admin/upload-dialog"
 import { EditDocumentDialog } from "@/components/admin/edit-document-dialog"
 import { CreateCompanyDialog } from "@/components/admin/create-company-dialog"
 import { CreateProtocolDialog } from "@/components/admin/create-protocol-dialog"
+import { EditCompanyDialog } from "@/components/admin/edit-company-dialog"
+import { EditProtocolDialog } from "@/components/admin/edit-protocol-dialog"
 import { getAuthToken } from "@/lib/auth"
 
 const AdminDashboard = () => {
@@ -29,7 +32,7 @@ const AdminDashboard = () => {
   const [searchTerm, setSearchTerm] = useState("")
 
   // Estados de datos
-  const [dashboard, setDashboard] = useState(null)
+  const [dashboard, setDashboard] = useState<Dashboard | null>(null)
   const [companies, setCompanies] = useState<Company[]>([])
   const [companyDetails, setCompanyDetails] = useState<Company | null>(null)
   const [companyDocuments, setCompanyDocuments] = useState<Document[]>([])
@@ -39,7 +42,11 @@ const AdminDashboard = () => {
   const [editDocumentDialogOpen, setEditDocumentDialogOpen] = useState(false)
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
   const [createCompanyDialogOpen, setCreateCompanyDialogOpen] = useState(false)
+  const [editCompanyDialogOpen, setEditCompanyDialogOpen] = useState(false)
+  const [companyToEdit, setCompanyToEdit] = useState<Company | null>(null)
   const [createProtocolDialogOpen, setCreateProtocolDialogOpen] = useState(false)
+  const [editProtocolDialogOpen, setEditProtocolDialogOpen] = useState(false)
+  const [protocolToEdit, setProtocolToEdit] = useState<any | null>(null)
   const [protocols, setProtocols] = useState<any[]>([])
   const [filteredProtocols, setFilteredProtocols] = useState<any[]>([])
 
@@ -67,6 +74,13 @@ const AdminDashboard = () => {
     description: "",
   })
 
+  const [editCompanyForm, setEditCompanyForm] = useState({
+    name: "",
+    industry: "",
+    sector: "",
+    description: "",
+  })
+
   const [createProtocolForm, setCreateProtocolForm] = useState({
     name: "",
     description: "",
@@ -76,16 +90,34 @@ const AdminDashboard = () => {
     is_active: true,
   })
 
-  const user = getUser()
+  const [editProtocolForm, setEditProtocolForm] = useState({
+    name: "",
+    description: "",
+    content: "",
+    version: "v1",
+    category: "",
+    is_active: true
+  })
+
+  const [user, setUser] = useState<any>(null)
   const api = useAdminApi()
+
+  // Evitar error de hidratación cargando usuario solo en cliente
+  useEffect(() => {
+    setUser(getUser())
+  }, [])
 
   // Cargar datos iniciales
   useEffect(() => {
     const loadInitialData = async () => {
-      const [dashboardData, companiesData] = await Promise.all([api.loadDashboard(), api.loadCompanies()])
+      // Cargar datos en paralelo pero manejar resultados independientemente
+      api.loadDashboard().then(data => {
+        if (data) setDashboard(data)
+      })
 
-      if (dashboardData) setDashboard(dashboardData)
-      if (companiesData) setCompanies(companiesData)
+      api.loadCompanies().then(data => {
+        if (data) setCompanies(data)
+      })
     }
 
     loadInitialData()
@@ -99,21 +131,10 @@ const AdminDashboard = () => {
   }, [activeTab])
 
   const fetchProtocols = async () => {
-    try {
-      const token = getAuthToken()
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/protocols/`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setProtocols(data)
-        setFilteredProtocols(data)
-      }
-    } catch (error) {
-      console.error("Error fetching protocols:", error)
+    const data = await api.fetchProtocols()
+    if (data) {
+      setProtocols(data)
+      setFilteredProtocols(data)
     }
   }
 
@@ -283,38 +304,109 @@ const AdminDashboard = () => {
   const handleCreateProtocol = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    try {
-      const token = getAuthToken()
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/admin/protocols/`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(createProtocolForm),
+    const result = await api.createProtocol(createProtocolForm)
+
+    if (result) {
+      // Reset form and close dialog
+      setCreateProtocolForm({
+        name: "",
+        description: "",
+        content: "",
+        version: "v1",
+        category: "",
+        is_active: true,
       })
+      setCreateProtocolDialogOpen(false)
 
-      if (response.ok) {
-        // Reset form and close dialog
-        setCreateProtocolForm({
-          name: "",
-          description: "",
-          content: "",
-          version: "v1",
-          category: "",
-          is_active: true,
-        })
-        setCreateProtocolDialogOpen(false)
+      // Reload protocols list
+      await fetchProtocols()
+    }
+  }
 
-        // Reload protocols list
-        await fetchProtocols()
-      } else {
-        const error = await response.json()
-        alert(`Error: ${error.detail || "Error al crear protocolo"}`)
+  const handleDeleteCompany = async (companyId: string) => {
+    if (!confirm("¿Estás seguro de que quieres eliminar este subagente? Se eliminarán todos sus documentos y configuraciones.")) return
+
+    const result = await api.deleteCompany(companyId)
+
+    if (result) {
+      if (selectedCompany?.id === companyId) {
+        setSelectedCompany(null)
       }
-    } catch (error) {
-      console.error("Error creating protocol:", error)
-      alert("Error al crear protocolo")
+      // Reload companies list
+      const companiesData = await api.loadCompanies()
+      if (companiesData) setCompanies(companiesData)
+    }
+  }
+
+  const handleEditCompany = (company: Company) => {
+    setCompanyToEdit(company)
+    setEditCompanyForm({
+      name: company.name,
+      industry: company.industry,
+      sector: company.sector,
+      description: company.description || ""
+    })
+    setEditCompanyDialogOpen(true)
+  }
+
+  const handleUpdateCompanySubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!companyToEdit) return
+
+    const result = await api.updateCompany(companyToEdit.id, editCompanyForm)
+
+    if (result) {
+      setEditCompanyDialogOpen(false)
+      setCompanyToEdit(null)
+
+      // Reload companies list
+      const companiesData = await api.loadCompanies()
+      if (companiesData) setCompanies(companiesData)
+
+      // Update selected company if it was the one edited
+      if (selectedCompany?.id === companyToEdit.id) {
+        setSelectedCompany(result)
+      }
+    }
+  }
+
+  const handleDeleteProtocol = async (protocolId: number, usageCount: number) => {
+    const force = usageCount > 0
+    const confirmMessage = force
+      ? `Este protocolo está siendo usado por ${usageCount} sub-agentes. ¿Eliminar de todas formas? Esto desvinculará todos los documentos.`
+      : "¿Estás seguro de eliminar este protocolo?"
+
+    if (!confirm(confirmMessage)) return
+
+    const result = await api.deleteProtocol(protocolId, force)
+    if (result) {
+      await fetchProtocols()
+    }
+  }
+
+  const handleEditProtocol = (protocol: any) => {
+    setProtocolToEdit(protocol)
+    setEditProtocolForm({
+      name: protocol.name,
+      description: protocol.description || "",
+      content: protocol.content || "",
+      version: protocol.version,
+      category: protocol.category || "",
+      is_active: protocol.is_active
+    })
+    setEditProtocolDialogOpen(true)
+  }
+
+  const handleUpdateProtocolSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!protocolToEdit) return
+
+    const result = await api.updateProtocol(protocolToEdit.id, editProtocolForm)
+
+    if (result) {
+      setEditProtocolDialogOpen(false)
+      setProtocolToEdit(null)
+      await fetchProtocols()
     }
   }
 
@@ -396,7 +488,7 @@ const AdminDashboard = () => {
               ) : (
                 <>
                   <DashboardStats dashboard={dashboard} />
-                  {dashboard?.recent_companies && <RecentCompanies companies={dashboard.recent_companies} />}
+                  {dashboard?.recent_companies && <RecentCompanies companies={dashboard.recent_companies as Company[]} />}
                 </>
               )}
             </div>
@@ -428,6 +520,8 @@ const AdminDashboard = () => {
                     selectedCompany={selectedCompany}
                     onSelectCompany={setSelectedCompany}
                     onAddCompany={() => setCreateCompanyDialogOpen(true)}
+                    onDeleteCompany={handleDeleteCompany}
+                    onEditCompany={handleEditCompany}
                   />
 
                   <div className="space-y-4">
@@ -435,6 +529,7 @@ const AdminDashboard = () => {
                       company={selectedCompany}
                       companyDetails={companyDetails}
                       documentsCount={companyDocuments.length}
+                      onDelete={handleDeleteCompany}
                     />
 
                     {selectedCompany && (
@@ -528,9 +623,32 @@ const AdminDashboard = () => {
                             <Badge variant={protocol.is_active ? "default" : "secondary"}>
                               {protocol.is_active ? "Activo" : "Inactivo"}
                             </Badge>
-                            <Button variant="ghost" size="sm">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild onPointerDown={(e) => e.stopPropagation()}>
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="z-[100]">
+                                <DropdownMenuItem onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditProtocol(protocol);
+                                }}>
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Editar
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  variant="destructive"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteProtocol(protocol.id, protocol.usage_count);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Eliminar
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </div>
                       ))}
@@ -553,12 +671,30 @@ const AdminDashboard = () => {
         loading={api.loading}
       />
 
+      <EditCompanyDialog
+        open={editCompanyDialogOpen}
+        onOpenChange={setEditCompanyDialogOpen}
+        form={editCompanyForm}
+        setForm={setEditCompanyForm}
+        onSubmit={handleUpdateCompanySubmit}
+        loading={api.loading}
+      />
+
       <CreateProtocolDialog
         open={createProtocolDialogOpen}
         onOpenChange={setCreateProtocolDialogOpen}
         form={createProtocolForm}
         setForm={setCreateProtocolForm}
         onSubmit={handleCreateProtocol}
+        loading={api.loading}
+      />
+
+      <EditProtocolDialog
+        open={editProtocolDialogOpen}
+        onOpenChange={setEditProtocolDialogOpen}
+        form={editProtocolForm}
+        setForm={setEditProtocolForm}
+        onSubmit={handleUpdateProtocolSubmit}
         loading={api.loading}
       />
 

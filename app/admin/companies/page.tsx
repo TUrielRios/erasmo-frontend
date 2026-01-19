@@ -11,6 +11,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Building2, Plus, Search, MoreHorizontal, FileText, Settings } from "lucide-react"
 import { AdminLayout } from "@/components/admin/admin-layout"
 import { getAuthToken, isAdmin } from "@/lib/auth"
+import { CreateCompanyDialog } from "@/components/admin/create-company-dialog"
+import { useAdminApi } from "@/hooks/use-admin-api"
+import { useToast } from "@/components/ui/use-toast"
 
 interface Company {
   id: string
@@ -26,33 +29,43 @@ export default function CompaniesPage() {
   const [filteredCompanies, setFilteredCompanies] = useState<Company[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [isLoading, setIsLoading] = useState(true)
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [newCompany, setNewCompany] = useState({
+    name: "",
+    industry: "",
+    sector: "",
+    description: "",
+  })
+
   const router = useRouter()
+  const { createCompany, loading: creatingCompany } = useAdminApi()
+  const { toast } = useToast()
+
+  const fetchCompanies = async () => {
+    try {
+      const token = getAuthToken()
+      const response = await fetch("/api/v1/admin/companies", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setCompanies(data)
+        setFilteredCompanies(data)
+      }
+    } catch (error) {
+      console.error("Error fetching companies:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   useEffect(() => {
     if (!isAdmin()) {
       router.push("/login")
       return
-    }
-
-    const fetchCompanies = async () => {
-      try {
-        const token = getAuthToken()
-        const response = await fetch("/api/v1/admin/companies", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        })
-
-        if (response.ok) {
-          const data = await response.json()
-          setCompanies(data)
-          setFilteredCompanies(data)
-        }
-      } catch (error) {
-        console.error("Error fetching companies:", error)
-      } finally {
-        setIsLoading(false)
-      }
     }
 
     fetchCompanies()
@@ -62,10 +75,46 @@ export default function CompaniesPage() {
     const filtered = companies.filter(
       (company) =>
         company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        company.email.toLowerCase().includes(searchTerm.toLowerCase()),
+        company.email?.toLowerCase().includes(searchTerm.toLowerCase()),
     )
     setFilteredCompanies(filtered)
   }, [searchTerm, companies])
+
+  const handleCreateCompany = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    try {
+      const result = await createCompany(newCompany)
+
+      if (result) {
+        toast({
+          title: "Empresa creada",
+          description: "El subagente ha sido creado exitosamente",
+        })
+        setCreateDialogOpen(false)
+        setNewCompany({
+          name: "",
+          industry: "",
+          sector: "",
+          description: "",
+        })
+        fetchCompanies()
+      } else {
+        toast({
+          title: "Error",
+          description: "No se pudo crear la empresa. Intente nuevamente.",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Error creating company:", error)
+      toast({
+        title: "Error",
+        description: "Ocurrió un error al crear la empresa",
+        variant: "destructive",
+      })
+    }
+  }
 
   const handleStatusChange = async (companyId: string, newStatus: "active" | "inactive") => {
     try {
@@ -108,7 +157,7 @@ export default function CompaniesPage() {
             <h1 className="text-3xl font-bold text-foreground">Empresas</h1>
             <p className="text-muted-foreground">Gestiona todas las empresas registradas</p>
           </div>
-          <Button onClick={() => router.push("/admin/companies/new")}>
+          <Button onClick={() => setCreateDialogOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Nueva Empresa
           </Button>
@@ -208,6 +257,17 @@ export default function CompaniesPage() {
           </CardContent>
         </Card>
       </div>
+
+      <CreateCompanyDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        form={newCompany}
+        setForm={setNewCompany}
+        onSubmit={handleCreateCompany}
+        loading={creatingCompany}
+      />
     </AdminLayout>
   )
 }
+
+

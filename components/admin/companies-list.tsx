@@ -5,7 +5,7 @@ import type React from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Plus, MoreHorizontal, Trash2 } from "lucide-react"
+import { Plus, MoreHorizontal, Trash2, Edit } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import type { Company } from "@/hooks/use-admin-api"
@@ -15,7 +15,8 @@ interface CompaniesListProps {
   selectedCompany: Company | null
   onSelectCompany: (company: Company) => void
   onAddCompany?: () => void
-  onDeleteCompany?: (companyId: number) => void
+  onDeleteCompany?: (companyId: string) => void
+  onEditCompany?: (company: Company) => void
 }
 
 export function CompaniesList({
@@ -24,13 +25,22 @@ export function CompaniesList({
   onSelectCompany,
   onAddCompany,
   onDeleteCompany,
+  onEditCompany,
 }: CompaniesListProps) {
-  const handleDelete = (e: React.MouseEvent, companyId: number) => {
+  const handleDelete = (e: React.MouseEvent, companyId: string) => {
     e.preventDefault()
     e.stopPropagation()
     console.log("[v0] Deleting company:", companyId)
     if (onDeleteCompany) {
       onDeleteCompany(companyId)
+    }
+  }
+
+  const handleEdit = (e: React.MouseEvent, company: Company) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (onEditCompany) {
+      onEditCompany(company)
     }
   }
 
@@ -66,26 +76,39 @@ export function CompaniesList({
                     <span className="text-xs text-gray-500">{company.user_count || 1} usuarios</span>
                   </div>
                 </div>
-                {onDeleteCompany && (
+                {(onDeleteCompany || onEditCompany) && (
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
+                    <DropdownMenuTrigger asChild onPointerDown={(e) => e.stopPropagation()}>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-6 w-6 p-0"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          console.log("[v0] Dropdown trigger clicked")
-                        }}
+                        className="h-8 w-8 p-0"
                       >
                         <MoreHorizontal className="h-4 w-4 text-gray-400" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={(e) => handleDelete(e, company.id)} className="text-destructive">
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Eliminar
-                      </DropdownMenuItem>
+                    <DropdownMenuContent align="end" className="z-[100]">
+                      {onEditCompany && (
+                        <DropdownMenuItem onClick={(e) => {
+                          e.stopPropagation();
+                          if (onEditCompany) onEditCompany(company);
+                        }}>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Editar
+                        </DropdownMenuItem>
+                      )}
+                      {onDeleteCompany && (
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onDeleteCompany) onDeleteCompany(company.id);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Eliminar
+                        </DropdownMenuItem>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 )}

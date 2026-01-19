@@ -14,11 +14,11 @@ interface DocumentsListProps {
   loading: boolean
   onUpload: () => void
   onEdit: (doc: Document) => void
-  onDelete: (docId: number) => void
+  onDelete: (docId: string) => void
 }
 
 export function DocumentsList({ documents, loading, onUpload, onEdit, onDelete }: DocumentsListProps) {
-  const [showMenuForDoc, setShowMenuForDoc] = useState<number | null>(null)
+  const [showMenuForDoc, setShowMenuForDoc] = useState<string | null>(null)
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return "0 Bytes"
@@ -37,7 +37,7 @@ export function DocumentsList({ documents, loading, onUpload, onEdit, onDelete }
     return labels[category] || category
   }
 
-  const handleToggleMenu = (docId: number) => {
+  const handleToggleMenu = (docId: string) => {
     console.log("🔵 Botón clickeado para documento:", docId)
     setShowMenuForDoc(showMenuForDoc === docId ? null : docId)
   }
@@ -48,7 +48,7 @@ export function DocumentsList({ documents, loading, onUpload, onEdit, onDelete }
     onEdit(doc)
   }
 
-  const handleDelete = (docId: number) => {
+  const handleDelete = (docId: string) => {
     console.log("🗑️ DELETE CLICKED:", docId)
     setShowMenuForDoc(null)
     onDelete(docId)
@@ -85,7 +85,7 @@ export function DocumentsList({ documents, loading, onUpload, onEdit, onDelete }
                       <Badge variant="outline" className="text-xs text-gray-600 border-gray-300">
                         {getCategoryLabel(doc.category)}
                       </Badge>
-                      <span className="text-xs text-gray-500">{formatFileSize(doc.file_size)}</span>
+                      <span className="text-xs text-gray-500">{formatFileSize(doc.file_size || 0)}</span>
                     </div>
                   </div>
                 </div>

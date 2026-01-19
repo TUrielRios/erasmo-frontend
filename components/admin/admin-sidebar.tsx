@@ -3,7 +3,7 @@
 import { LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { removeAuthToken } from "@/lib/auth"
+import { logout } from "@/lib/auth"
 import { useRouter } from "next/navigation"
 
 interface AdminSidebarProps {
@@ -16,7 +16,7 @@ export function AdminSidebar({ activeTab, setActiveTab, user }: AdminSidebarProp
   const router = useRouter()
 
   const handleLogout = () => {
-    removeAuthToken()
+    logout()
     router.push("/login")
   }
 

@@ -13,22 +13,22 @@ export function DashboardStats({ dashboard }: DashboardStatsProps) {
   const stats = [
     {
       title: "Total Compañías",
-      value: dashboard.total_companies || 0,
+      value: dashboard.overview?.total_companies || 0,
       icon: "/icons/parlante.svg",
     },
     {
       title: "Conversaciones",
-      value: dashboard.active_companies || 0,
+      value: dashboard.overview?.total_conversations || 0,
       icon: "/icons/viñeta.svg",
     },
     {
       title: "Total Usuarios",
-      value: dashboard.total_users || 0,
+      value: dashboard.overview?.total_users || 0,
       icon: "/icons/user.svg",
     },
     {
       title: "Documentos",
-      value: dashboard.total_documents || 0,
+      value: dashboard.usage_stats?.document_uploads || 0,
       icon: "/icons/hoja.svg",
     },
   ]
@@ -39,7 +39,7 @@ export function DashboardStats({ dashboard }: DashboardStatsProps) {
         <Card key={stat.title}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-m font-bold text-blue-600 ">{stat.title}</CardTitle>
-             <img src={stat.icon} alt={stat.title} className="h-5 w-5" />
+            <img src={stat.icon} alt={stat.title} className="h-5 w-5" />
           </CardHeader>
 
           <CardContent>

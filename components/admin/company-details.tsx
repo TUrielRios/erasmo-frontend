@@ -2,16 +2,18 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Calendar, FileText } from "lucide-react"
+import { Calendar, FileText, Trash2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import type { Company } from "@/hooks/use-admin-api"
 
 interface CompanyDetailsProps {
   company: Company | null
   companyDetails: Company | null
   documentsCount: number
+  onDelete?: (id: string) => void
 }
 
-export function CompanyDetails({ company, companyDetails, documentsCount }: CompanyDetailsProps) {
+export function CompanyDetails({ company, companyDetails, documentsCount, onDelete }: CompanyDetailsProps) {
   if (!company) {
     return (
       <Card className="border-gray-200">
@@ -48,9 +50,21 @@ export function CompanyDetails({ company, companyDetails, documentsCount }: Comp
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-[#0000FF] text-base">{details.name || "Sin nombre"}</CardTitle>
-          <Badge variant="secondary" className="bg-cyan-400 text-white hover:bg-cyan-400 text-xs">
-            {details.is_active ? "Activo" : "Inactivo"}
-          </Badge>
+          <div className="flex items-center space-x-2">
+            <Badge variant="secondary" className="bg-cyan-400 text-white hover:bg-cyan-400 text-xs">
+              {details.is_active ? "Activo" : "Inactivo"}
+            </Badge>
+            {onDelete && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={() => onDelete(details.id)}
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">

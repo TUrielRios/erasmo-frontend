@@ -11,6 +11,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { FileCode, Plus, Search, MoreHorizontal, Edit, Trash2, Eye, Users } from "lucide-react"
 import { AdminLayout } from "@/components/admin/admin-layout"
 import { getAuthToken } from "@/lib/auth"
+import { CreateProtocolDialog } from "@/components/admin/create-protocol-dialog"
+import { useAdminApi } from "@/hooks/use-admin-api"
+import { useToast } from "@/components/ui/use-toast"
 
 interface Protocol {
     id: number
@@ -29,7 +32,19 @@ export default function ProtocolsPage() {
     const [filteredProtocols, setFilteredProtocols] = useState<Protocol[]>([])
     const [searchTerm, setSearchTerm] = useState("")
     const [isLoading, setIsLoading] = useState(true)
+    const [createDialogOpen, setCreateDialogOpen] = useState(false)
+    const [newProtocol, setNewProtocol] = useState({
+        name: "",
+        description: "",
+        content: "",
+        version: "v1",
+        category: "",
+        is_active: true
+    })
+
     const router = useRouter()
+    const { createProtocol, loading: creatingProtocol } = useAdminApi()
+    const { toast } = useToast()
 
     useEffect(() => {
         fetchProtocols()
@@ -65,6 +80,44 @@ export default function ProtocolsPage() {
         )
         setFilteredProtocols(filtered)
     }, [searchTerm, protocols])
+
+    const handleCreateProtocol = async (e: React.FormEvent) => {
+        e.preventDefault()
+
+        try {
+            const result = await createProtocol(newProtocol)
+
+            if (result) {
+                toast({
+                    title: "Protocolo creado",
+                    description: "El protocolo ha sido creado correctamente",
+                })
+                setCreateDialogOpen(false)
+                setNewProtocol({
+                    name: "",
+                    description: "",
+                    content: "",
+                    version: "v1",
+                    category: "",
+                    is_active: true
+                })
+                fetchProtocols()
+            } else {
+                toast({
+                    title: "Error",
+                    description: "No se pudo crear el protocolo",
+                    variant: "destructive"
+                })
+            }
+        } catch (error) {
+            console.error("Error creating protocol:", error)
+            toast({
+                title: "Error",
+                description: "Ocurrió un error al crear el protocolo",
+                variant: "destructive"
+            })
+        }
+    }
 
     const handleDelete = async (protocolId: number, usageCount: number) => {
         const force = usageCount > 0
@@ -137,7 +190,7 @@ export default function ProtocolsPage() {
                         <h1 className="text-3xl font-bold text-foreground">Protocolos Centralizados</h1>
                         <p className="text-muted-foreground">Gestiona protocolos reutilizables para múltiples sub-agentes</p>
                     </div>
-                    <Button onClick={() => router.push("/admin/protocols/new")}>
+                    <Button onClick={() => setCreateDialogOpen(true)}>
                         <Plus className="h-4 w-4 mr-2" />
                         Nuevo Protocolo
                     </Button>
@@ -222,30 +275,42 @@ export default function ProtocolsPage() {
                                             <TableCell>{new Date(protocol.created_at).toLocaleDateString()}</TableCell>
                                             <TableCell className="text-right">
                                                 <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="sm">
+                                                    <DropdownMenuTrigger asChild onPointerDown={(e) => e.stopPropagation()}>
+                                                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
                                                             <MoreHorizontal className="h-4 w-4" />
                                                         </Button>
                                                     </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem onClick={() => router.push(`/admin/protocols/${protocol.id}`)}>
+                                                    <DropdownMenuContent align="end" className="z-[100]">
+                                                        <DropdownMenuItem onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            router.push(`/admin/protocols/${protocol.id}`);
+                                                        }}>
                                                             <Eye className="h-4 w-4 mr-2" />
                                                             Ver Detalles
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem onClick={() => router.push(`/admin/protocols/${protocol.id}/edit`)}>
+                                                        <DropdownMenuItem onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            router.push(`/admin/protocols/${protocol.id}/edit`);
+                                                        }}>
                                                             <Edit className="h-4 w-4 mr-2" />
                                                             Editar
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem
-                                                            onClick={() => handleViewUsage(protocol.id)}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleViewUsage(protocol.id);
+                                                            }}
                                                             className="text-blue-600"
                                                         >
                                                             <Users className="h-4 w-4 mr-2" />
                                                             Ver Uso ({protocol.usage_count})
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem
-                                                            onClick={() => handleDelete(protocol.id, protocol.usage_count)}
-                                                            className="text-red-600"
+                                                            variant="destructive"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleDelete(protocol.id, protocol.usage_count);
+                                                            }}
                                                         >
                                                             <Trash2 className="h-4 w-4 mr-2" />
                                                             Eliminar
@@ -261,6 +326,17 @@ export default function ProtocolsPage() {
                     </CardContent>
                 </Card>
             </div>
+
+            <CreateProtocolDialog
+                open={createDialogOpen}
+                onOpenChange={setCreateDialogOpen}
+                form={newProtocol}
+                setForm={setNewProtocol}
+                onSubmit={handleCreateProtocol}
+                loading={creatingProtocol}
+            />
         </AdminLayout>
     )
 }
+
+
