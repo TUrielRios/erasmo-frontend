@@ -23,6 +23,7 @@ import { CreateProtocolDialog } from "@/components/admin/create-protocol-dialog"
 import { EditCompanyDialog } from "@/components/admin/edit-company-dialog"
 import { EditProtocolDialog } from "@/components/admin/edit-protocol-dialog"
 import { getAuthToken } from "@/lib/auth"
+import { useToast } from "@/components/ui/use-toast"
 
 const AdminDashboard = () => {
   // Estados principales
@@ -101,6 +102,7 @@ const AdminDashboard = () => {
 
   const [user, setUser] = useState<any>(null)
   const api = useAdminApi()
+  const { toast } = useToast()
 
   // Evitar error de hidratación cargando usuario solo en cliente
   useEffect(() => {
@@ -324,17 +326,28 @@ const AdminDashboard = () => {
   }
 
   const handleDeleteCompany = async (companyId: string) => {
-    if (!confirm("¿Estás seguro de que quieres eliminar este subagente? Se eliminarán todos sus documentos y configuraciones.")) return
+    if (!confirm("¿Estás seguro de que quieres eliminar este subagente? Se eliminarán todos sus documentos y configuraciones de forma permanente.")) return
 
     const result = await api.deleteCompany(companyId)
 
     if (result) {
+      toast({
+        title: "Subagente eliminado",
+        description: "La empresa y todos sus datos han sido eliminados correctamente",
+      })
+
       if (selectedCompany?.id === companyId) {
         setSelectedCompany(null)
       }
       // Reload companies list
       const companiesData = await api.loadCompanies()
       if (companiesData) setCompanies(companiesData)
+    } else {
+      toast({
+        title: "Error",
+        description: api.error || "No se pudo eliminar la empresa",
+        variant: "destructive",
+      })
     }
   }
 
@@ -380,7 +393,17 @@ const AdminDashboard = () => {
 
     const result = await api.deleteProtocol(protocolId, force)
     if (result) {
+      toast({
+        title: "Protocolo eliminado",
+        description: "El protocolo ha sido eliminado correctamente",
+      })
       await fetchProtocols()
+    } else {
+      toast({
+        title: "Error",
+        description: api.error || "No se pudo eliminar el protocolo",
+        variant: "destructive",
+      })
     }
   }
 

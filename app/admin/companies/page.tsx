@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Building2, Plus, Search, MoreHorizontal, FileText, Settings } from "lucide-react"
+import { Building2, Plus, Search, MoreHorizontal, FileText, Settings, Trash2 } from "lucide-react"
 import { AdminLayout } from "@/components/admin/admin-layout"
 import { getAuthToken, isAdmin } from "@/lib/auth"
 import { CreateCompanyDialog } from "@/components/admin/create-company-dialog"
@@ -44,7 +44,8 @@ export default function CompaniesPage() {
   const fetchCompanies = async () => {
     try {
       const token = getAuthToken()
-      const response = await fetch("/api/v1/admin/companies", {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001"
+      const response = await fetch(`${apiUrl}/api/v1/admin/companies`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -119,13 +120,14 @@ export default function CompaniesPage() {
   const handleStatusChange = async (companyId: string, newStatus: "active" | "inactive") => {
     try {
       const token = getAuthToken()
-      const response = await fetch(`/api/v1/admin/companies/${companyId}/status`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001"
+      const response = await fetch(`${apiUrl}/api/v1/admin/companies/${companyId}/status`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ is_active: newStatus === "active" }),
       })
 
       if (response.ok) {
@@ -135,6 +137,37 @@ export default function CompaniesPage() {
       }
     } catch (error) {
       console.error("Error updating company status:", error)
+    }
+  }
+
+  const handleDeleteCompany = async (companyId: string) => {
+    if (!confirm("¿Estás seguro de que quieres eliminar este subagente? Se eliminarán todos sus documentos y configuraciones de forma permanente.")) return
+
+    try {
+      const token = getAuthToken()
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001"
+      const response = await fetch(`${apiUrl}/api/v1/admin/companies/${companyId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (response.ok) {
+        toast({
+          title: "Subagente eliminado",
+          description: "La empresa y todos sus datos han sido eliminados correctamente",
+        })
+        fetchCompanies()
+      } else {
+        toast({
+          title: "Error",
+          description: "No se pudo eliminar la empresa",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Error deleting company:", error)
     }
   }
 
@@ -246,6 +279,14 @@ export default function CompaniesPage() {
                             }
                           >
                             {company.status === "active" ? "Desactivar" : "Activar"}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => handleDeleteCompany(company.id)}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Eliminar
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
